@@ -44,7 +44,11 @@ const char *gbpCommand_toStr(int val) {
 #ifdef ESP8266
 void ICACHE_RAM_ATTR serialClock_ISR(void)
 #else
-void serialClock_ISR(void)
+  #ifdef ESP32
+    void ICACHE_RAM_ATTR serialClock_ISR(void)
+  #else
+    void serialClock_ISR(void)
+  #endif
 #endif
 {
   // Serial Clock (1 = Rising Edge) (0 = Falling Edge); Master Output Slave Input (This device is slave)
@@ -57,14 +61,28 @@ void serialClock_ISR(void)
 }
 
 unsigned int nextFreeFileIndex() {
-  for (int i = 1; i < MAX_IMAGES; i++) {
-    char path[31];
-    sprintf(path, "/d/%05d.txt", i);
-    if (!FS.exists(path)) {
-      return i;
+  #ifdef ESP8266
+    for (int i = 1; i < MAX_IMAGES; i++) {
+      char path[31];
+      sprintf(path, "/d/%05d.txt", i);
+      if (!FS.exists(path)) {
+        return i;
+      }
     }
-  }
-  return MAX_IMAGES + 1;
+    return MAX_IMAGES + 1;
+  #endif  
+  #ifdef ESP32
+    int totFiles = 0;
+    File root = FS.open("/d");
+    File file = root.openNextFile();
+    while(file){
+      if(file){
+        totFiles++;
+      }
+      file = root.openNextFile();
+    }
+    return totFiles;
+  #endif
 }
 
 void resetValues() {
@@ -95,16 +113,26 @@ void storeData(byte *image_data) {
 
   digitalWrite(LED_BLINK_PIN, LOW);
 
-  File file = FS.open(fileName, "w");
+  
+  #ifdef ESP8266
+    File file = FS.open(fileName, "w");
+  #endif  
+  #ifdef ESP32
+    File file = FS.open(fileName, FILE_WRITE);
+  #endif
 
   if (!file) {
     Serial.println("file creation failed");
   }
-
-  // for (int i = 0 ; i < img_index ; i++){
-  //   file.print((char)image_data[i]);
-  // }
-  file.write(image_data, img_index);
+  
+  #ifdef ESP8266
+    file.write(image_data, img_index);
+  #endif  
+  #ifdef ESP32
+    for (int i = 0 ; i < img_index ; i++){
+      file.print((char)image_data[i]);
+    }
+  #endif
   file.close();
 
   perf = millis() - perf;
@@ -112,14 +140,25 @@ void storeData(byte *image_data) {
 
   freeFileIndex++;
 
-  // ToDo: Handle percentages
-  int percUsed = fs_info();
-  if (percUsed > 5) {
-    resetValues();
-  } else {
-    Serial.println("no more space on printer\nrebooting...");
-    ESP.restart();
-  }
+
+  #ifdef ESP8266
+    // ToDo: Handle percentages
+    int percUsed = fs_info();
+    if (percUsed > 5) {
+      resetValues();
+    } else {
+      Serial.println("no more space on printer\nrebooting...");
+      ESP.restart();
+    }
+  #endif  
+  #ifdef ESP32
+    if (freeFileIndex <= MAX_IMAGES) {
+      resetValues();
+    } else {
+      Serial.println("no more space on printer\nrebooting...");
+      ESP.restart();
+    }
+  #endif
 }
 
 // Blink if printer is full.
@@ -169,11 +208,24 @@ void espprinter_setup() {
 
 #ifdef USE_OLED
 void showPrinterStats() {
-  char printed[20];
-  int percUsed = fs_info();
-  sprintf(printed, "%3d files", freeFileIndex - 1);
-  oled_msg(((String)percUsed)+((char)'%')+" remaining",printed);
-  oled_drawLogo();
+  #ifdef ESP8266
+    char printed[20];
+    int percUsed = fs_info();
+    sprintf(printed, "%3d files", freeFileIndex - 1);
+    oled_msg(((String)percUsed)+((char)'%')+" remaining",printed);
+    oled_drawLogo();
+  #endif  
+  #ifdef ESP32
+    char printed[20];
+    char remain[20];
+    sprintf(printed, "%3d printed", freeFileIndex - 1);
+    sprintf(remain, "%3d remaining", MAX_IMAGES + 1 - freeFileIndex);
+    oled_msg(
+      printed,
+      remain
+    );
+    oled_drawLogo();
+  #endif
 }
 #endif
 

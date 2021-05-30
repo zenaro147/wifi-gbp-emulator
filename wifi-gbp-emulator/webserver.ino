@@ -1,6 +1,11 @@
 
-ESP8266WebServer server(80);
-
+#ifdef ESP8266
+  ESP8266WebServer server(80);
+#endif
+#ifdef ESP32
+  WebServer server(80);
+#endif
+  
 #define DUMP_CHUNK_SIZE 90
 
 void send404() {
@@ -10,19 +15,35 @@ void send404() {
 
 // delete all stored dumps
 void clearDumps() {
-  Dir dumpDir = FS.openDir("/d/");
-
   unsigned int dumpcount = 0;
-  while(dumpDir.next()) {
+  #ifdef ESP8266
+    Dir dumpDir = FS.openDir("/d/");
+  
+    while(dumpDir.next()) {
+  
+      #ifdef FSTYPE_LITTLEFS
+        FS.remove("/d/" + dumpDir.fileName());
+      #else
+        FS.remove(dumpDir.fileName());
+      #endif
+  
+      dumpcount++;
+    }
+  #endif  
+  #ifdef ESP32
+    File dumpDir = FS.open("/d");    
+    File file = dumpDir.openNextFile();
+  
+    char filename[12]; 
+  
+    while(file) {
+      sprintf(filename, "/d/%d", file.name());
+      FS.remove(filename);
+      dumpcount++;    
+      file = dumpDir.openNextFile();
+    }
+  #endif
 
-    #ifdef FSTYPE_LITTLEFS
-      FS.remove("/d/" + dumpDir.fileName());
-    #else
-      FS.remove(dumpDir.fileName());
-    #endif
-
-    dumpcount++;
-  }
 
   char out[24];
   sprintf(out, "{\"deleted\":%d}", dumpcount);
@@ -32,14 +53,7 @@ void clearDumps() {
 
 // serve list of saved dumps
 void getDumpsList() {
-  Dir dumpDir = FS.openDir("/d/");
-
-  FSInfo fs_info;
-  FS.info(fs_info);
-  unsigned long total = fs_info.totalBytes;
-  unsigned long used = fs_info.usedBytes;
-  unsigned long avail = total - used;
-
+  
   String fileName = "";
   String fileShort = "";
 
@@ -49,23 +63,58 @@ void getDumpsList() {
   String out;
   String dumpList;
   bool sep = false;
-
-  while(dumpDir.next()) {
-    dumpcount++;
-    if (sep) {
-      dumpList += ",";
-    } else {
-      sep = true;
+  
+  #ifdef ESP8266
+    Dir dumpDir = FS.openDir("/d/");
+    FSInfo fs_info;
+    FS.info(fs_info);
+    unsigned long total = fs_info.totalBytes;
+    unsigned long used = fs_info.usedBytes;
+    unsigned long avail = total - used;
+    
+    while(dumpDir.next()) {
+      dumpcount++;
+      if (sep) {
+        dumpList += ",";
+      } else {
+        sep = true;
+      }
+      dumpList += "\"";
+      #ifdef FSTYPE_LITTLEFS
+        dumpList += "/dumps/";
+      #else
+        dumpList += "/dumps" ;
+      #endif
+      dumpList += dumpDir.fileName();
+      dumpList += "\"";
     }
-    dumpList += "\"";
-    #ifdef FSTYPE_LITTLEFS
-      dumpList += "/dumps/";
-    #else
-      dumpList += "/dumps" ;
-    #endif
-    dumpList += dumpDir.fileName();
-    dumpList += "\"";
-  }
+  #endif  
+  #ifdef ESP32
+    File dumpDir = FS.open("/d");
+    
+    //Random Values. Need find some way to get this
+    unsigned long total = 1953282;
+    unsigned long used = 655863;
+    unsigned long avail = 1297419;
+
+    File file = dumpDir.openNextFile();
+    while(file){
+      dumpcount++;
+      if (sep) {
+        dumpList += ",";
+      } else {
+        sep = true;
+      }    
+      dumpList += "\"";
+      dumpList += "/dumps/d/";
+      dumpList += file.name();
+      dumpList += "\"";
+      file = dumpDir.openNextFile();
+    }  
+  #endif 
+
+
+  
 
   char fs[100];
   sprintf(fs, "{\"total\":%d,\"used\":%d,\"available\":%d,\"maximages\":%d,\"dumpcount\":%d}", total, used, avail, MAX_IMAGES, dumpcount);
@@ -83,7 +132,11 @@ void getEnv() {
 #ifdef ESP8266
     "esp8266",
 #else
+  #ifdef ESP32
+    "esp8266",
+  #else
     "unknown",
+  #endif
 #endif
 #ifdef FSTYPE_LITTLEFS
     "littlefs",
@@ -127,40 +180,81 @@ void setConfig() {
 void handleDump() {
   String path = "/d/" + server.pathArg(0);
 
-  if(FS.exists(path)) {
-    File file = FS.open(path, "r");
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-
-    server.setContentLength(file.available() * 3);
-    server.send(200, "text/plain");
-
-    Serial.println(file.available());
-    Serial.println(file.available() * 3);
-
-    const char nibbleToCharLUT[] = "0123456789ABCDEF";
-
-    char converted[DUMP_CHUNK_SIZE];
-    uint8_t index = 0;
-
-    while (file.available()) {
-      char c = file.read();
-
-      converted[index] = nibbleToCharLUT[(c>>4)&0xF];
-      converted[index + 1] = nibbleToCharLUT[(c>>0)&0xF];
-      converted[index + 2] = ' ';
-      index += 3;
-
-      if (index >= DUMP_CHUNK_SIZE || file.available() == 0) {
-        Serial.println(index + 3);
-        server.sendContent(converted, index);
-        index = 0;
+  #ifdef ESP8266
+    if(FS.exists(path)) {
+      File file = FS.open(path, "r");
+      server.sendHeader("Access-Control-Allow-Origin", "*");
+  
+      server.setContentLength(file.available() * 3);
+      server.send(200, "text/plain");
+  
+      Serial.println(file.available());
+      Serial.println(file.available() * 3);
+  
+      const char nibbleToCharLUT[] = "0123456789ABCDEF";
+  
+      char converted[DUMP_CHUNK_SIZE];
+      uint8_t index = 0;
+  
+      while (file.available()) {
+        char c = file.read();
+  
+        converted[index] = nibbleToCharLUT[(c>>4)&0xF];
+        converted[index + 1] = nibbleToCharLUT[(c>>0)&0xF];
+        converted[index + 2] = ' ';
+        index += 3;
+  
+        if (index >= DUMP_CHUNK_SIZE || file.available() == 0) {
+          Serial.println(index + 3);
+          server.sendContent(converted, index);
+          index = 0;
+        }
       }
+      file.close();
+      return;
     }
+  #endif  
+  #ifdef ESP32
+    File file = FS.open(path);
 
-    file.close();
-    return;
-  }
-
+    if(!file || file.isDirectory()){
+      Serial.println("failed to open file for reading");
+      return;
+    }
+    
+    if(file) {
+      server.sendHeader("Access-Control-Allow-Origin", "*");
+  
+      server.setContentLength(file.available() * 3);
+      server.send(200, "text/plain");
+  
+      Serial.println(file.available());
+      Serial.println(file.available() * 3);
+  
+      const char nibbleToCharLUT[] = "0123456789ABCDEF";
+  
+      char converted[DUMP_CHUNK_SIZE];
+      uint8_t index = 0;
+  
+      while (file.available()) {
+        char c = file.read();
+  
+        converted[index] = nibbleToCharLUT[(c>>4)&0xF];
+        converted[index + 1] = nibbleToCharLUT[(c>>0)&0xF];
+        converted[index + 2] = ' ';
+        index += 3;
+  
+        if (index >= DUMP_CHUNK_SIZE || file.available() == 0) {
+          Serial.println(index + 3);
+          server.sendContent(converted, index);
+          index = 0;
+        }
+      }
+      file.close();
+      return;
+    }
+  #endif
+  
   send404();
 }
 
@@ -172,19 +266,43 @@ bool handleFileRead(String path) {
   }
 
   String pathWithGz = path + ".gz";
-  if(FS.exists(pathWithGz) || FS.exists(path)) {
-    String contentType = getContentType(path);
-
-    if(FS.exists(pathWithGz)) {
-      path += ".gz";
+  #ifdef ESP8266
+    if(FS.exists(pathWithGz) || FS.exists(path)) {
+      String contentType = getContentType(path);
+  
+      if(FS.exists(pathWithGz)) {
+        path += ".gz";
+      }
+  
+      File file = FS.open(path, "r");
+      server.sendHeader("Access-Control-Allow-Origin", "*");
+      size_t sent = server.streamFile(file, contentType);
+      file.close();
+      return true;
     }
+  #endif  
+  #ifdef ESP32
+    File file1 = FS.open(path);
+    File file2 = FS.open(pathWithGz);
+    
+    if(file1 || file2) {
+      String contentType = getContentType(path);
+  
+      if(file2) {
+        path += ".gz";
+      }
+      
+      file1.close();
+      file2.close();  
+      
+      File file = FS.open(path);
+      server.sendHeader("Access-Control-Allow-Origin", "*");
+      size_t sent = server.streamFile(file, contentType);
+      file.close();
+      return true;
+    }
+  #endif
 
-    File file = FS.open(path, "r");
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    size_t sent = server.streamFile(file, contentType);
-    file.close();
-    return true;
-  }
 
   Serial.print(path);
   Serial.println(" - Not Found");

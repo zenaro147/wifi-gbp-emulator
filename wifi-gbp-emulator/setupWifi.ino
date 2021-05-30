@@ -1,16 +1,31 @@
 
-ESP8266WiFiMulti wifiMulti;
+  #ifdef ESP8266
+    ESP8266WiFiMulti wifiMulti;
+  #endif  
+  #ifdef ESP32
+    WiFiMulti wifiMulti;
+  #endif
 
 void createEmptyConfig() {
   Serial.println("Preparing empty conf.json. \nYou can configure WiFi-Settings via the web interface.");
-  File confFileEmpty = FS.open("/conf.json", "w");
+  #ifdef ESP8266
+    File confFileEmpty = FS.open("/conf.json", "w");
+  #endif  
+  #ifdef ESP32
+    File confFileEmpty = FS.open("/conf.json", FILE_WRITE);
+  #endif
   confFileEmpty.println("{}");
   confFileEmpty.close();
 }
 
 void setupWifi() {
-  StaticJsonDocument<1023> conf;
-  File confFile = FS.open("/conf.json", "r");
+  StaticJsonDocument<1023> conf;  
+  #ifdef ESP8266
+    File confFile = FS.open("/conf.json", "r");
+  #endif  
+  #ifdef ESP32
+    File confFile = FS.open("/conf.json");
+  #endif
 
   if (confFile) {
     DeserializationError error = deserializeJson(conf, confFile.readString());
@@ -98,7 +113,16 @@ void setupWifi() {
     return;
   } else {
     WiFi.mode(WIFI_AP);
-    WiFi.softAP(accesPointSSID, accesPointPassword);
+    #ifdef ESP8266
+      WiFi.softAP(accesPointSSID, accesPointPassword);
+    #endif
+    #ifdef ESP32
+      char accesPointSSIDc[40];
+      char accesPointPasswordc[40];
+      sprintf(accesPointSSIDc, "%d", accesPointSSID);
+      sprintf(accesPointPasswordc, "%d", accesPointPassword);
+      WiFi.softAP(accesPointSSIDc, accesPointPasswordc);
+    #endif
     Serial.println("AccessPoint " + accesPointSSID + " started");
   }
 }

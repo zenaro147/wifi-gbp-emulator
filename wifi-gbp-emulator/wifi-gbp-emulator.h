@@ -1,10 +1,22 @@
 #include "config.h"
-#include <FS.h>
 #include <ArduinoJson.h>
-#include <ESP8266WiFi.h>
-#include <ESP8266WiFiMulti.h>
-#include <ESP8266WebServer.h>
-#include <ESP8266mDNS.h>
+
+#ifdef ESP8266
+  #include <FS.h>
+  #include <ESP8266WiFi.h>
+  #include <ESP8266WiFiMulti.h>
+  #include <ESP8266WebServer.h>
+  #include <ESP8266mDNS.h>
+#endif
+#ifdef ESP32
+  #include "FS.h"
+  #include "SPIFFS.h"
+  #include <WiFi.h>
+  #include <WiFiMulti.h>
+  #include <WebServer.h>
+  #include <ESPmDNS.h>
+#endif
+
 #include <uri/UriBraces.h>
 
 #ifndef DEFAULT_AP_SSID
@@ -16,6 +28,16 @@
 #ifndef DEFAULT_MDNS_NAME
 #define DEFAULT_MDNS_NAME "gameboyprinter"
 #endif
+/*
+#ifndef WIFI_CONNECT_TIMEOUT
+  #ifdef ESP8266
+    #define WIFI_CONNECT_TIMEOUT 10000
+  #endif
+  #ifdef ESP32
+    #define WIFI_CONNECT_TIMEOUT 60000
+  #endif
+#endif
+*/
 #ifndef WIFI_CONNECT_TIMEOUT
 #define WIFI_CONNECT_TIMEOUT 10000
 #endif
@@ -41,12 +63,27 @@
 #define GB_SCLK 14
 #endif
 
-#ifdef FSTYPE_LITTLEFS
-#include <LittleFS.h>
-#define FS LittleFS
-#else
-#define FS SPIFFS
+
+
+#ifdef ESP8266
+  #ifdef FSTYPE_LITTLEFS
+    #include <LittleFS.h>
+    #define FS LittleFS
+  #else
+    #define FS SPIFFS
+  #endif
 #endif
+
+#ifdef ESP32
+  #define FS SPIFFS
+#endif
+
+
+
+
+
+
+
 
 #define MODE_PRINT true
 #define MODE_SERVE false

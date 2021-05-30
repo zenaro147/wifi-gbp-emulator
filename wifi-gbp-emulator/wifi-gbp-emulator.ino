@@ -10,7 +10,13 @@ bool hasNetworkSettings = false;
 bool bootMode;
 
 void setup() {
-  Serial.begin(38400);
+
+  #ifdef ESP8266
+    Serial.begin(38400);
+  #endif
+  #ifdef ESP32
+    Serial.begin(115200);
+  #endif
   Serial.println("\n\n\n\n");
 
   #ifdef USE_OLED
