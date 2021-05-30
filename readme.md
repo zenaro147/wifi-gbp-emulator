@@ -5,7 +5,7 @@ This code has been created for a "LOLIN(WEMOS) D1 R2 & mini" [ESP8266 based boar
 This is (for now) a Prototybe branch to use the original code into the ESP32 (and maybe get some advantages from his hardware, like the dual core)
 
 # Known Bugs
-ESP32 Ony:
+ESP32 Only:
 
 *WiFi doesn't connect (maybe sometimes?)
 
