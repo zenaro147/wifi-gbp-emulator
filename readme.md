@@ -9,7 +9,7 @@ ESP32 Ony:
 
 *WiFi doesn't connect (maybe sometimes?)
 
-*Batch Print from Gameboy Camera stop writing files after a while, but the data stream doen't stop (maybe the FileSystem is based on LittleFS?)
+*Batch Print from Gameboy Camera stop writing files after a while, but the data stream doesn't stop (maybe the FileSystem is based on LittleFS?)
 
 *Access Point didn't initialize properly
 
