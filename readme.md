@@ -12,3 +12,5 @@ ESP32 Ony:
 *Batch Print from Gameboy Camera stop writing files after a while, but the data stream doen't stop (maybe the FileSystem is based on LittleFS?)
 
 *Access Point didn't initialize properly
+
+*Some OLED display glitches
