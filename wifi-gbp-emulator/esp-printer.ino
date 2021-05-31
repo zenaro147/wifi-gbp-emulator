@@ -22,7 +22,7 @@ uint8_t gbp_serialIO_raw_buffer[GBP_BUFFER_SIZE] = {0};
 
 inline void gbp_packet_capture_loop();
 
-TaskHandle_t TaskWrite;
+//TaskHandle_t TaskWrite;
 
 /*******************************************************************************
   Utility Functions
@@ -88,15 +88,13 @@ unsigned int nextFreeFileIndex() {
 }
 
 void resetValues() {
-  img_index = 0x00;
-  
-  #ifdef ESP8266
-     /*Attach ISR Again*/
-    #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
-      attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
-    #else
-      attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
-    #endif
+  img_index = 0x00;  
+
+   /*Attach ISR Again*/
+  #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
+    attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
+  #else
+    attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
   #endif
 
   memset(image_data, 0x00, sizeof(image_data));
