@@ -20,7 +20,7 @@ void setup() {
   Serial.println("\n\n\n\n");
 
   #ifdef USE_OLED
-  oled_setup();
+    oled_setup();
   #endif
 
   fs_setup();

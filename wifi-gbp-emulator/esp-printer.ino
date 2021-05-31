@@ -22,7 +22,7 @@ uint8_t gbp_serialIO_raw_buffer[GBP_BUFFER_SIZE] = {0};
 
 inline void gbp_packet_capture_loop();
 
-//TaskHandle_t TaskWrite;
+TaskHandle_t TaskWrite;
 
 /*******************************************************************************
   Utility Functions
@@ -90,12 +90,14 @@ unsigned int nextFreeFileIndex() {
 void resetValues() {
   img_index = 0x00;  
 
-   /*Attach ISR Again*/
-  #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
-    attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
-  #else
-    attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
-  #endif
+  #ifdef ESP8266
+    /*Attach ISR Again*/
+    #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
+      attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
+    #else
+      attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
+    #endif
+  #endif  
 
   memset(image_data, 0x00, sizeof(image_data));
   showPrinterStats();
@@ -104,7 +106,6 @@ void resetValues() {
   digitalWrite(LED_BLINK_PIN, false);
   Serial.println("Printer ready.");
 }
-/*
 #ifdef ESP8266
 void storeData(byte *image_data) {
   detachInterrupt(digitalPinToInterrupt(GB_SCLK));
@@ -139,10 +140,11 @@ void storeData(byte *image_data) {
 }
 #endif  
 #ifdef ESP32
-void storeData( void * pvParameters ){
+void storeData( void *pvParameters ){
 
   unsigned long perf = millis();
   char fileName[31];
+  byte *image_data2 = ((byte*)pvParameters);
   
   oled_msg("Saving...");
   sprintf(fileName, "/d/%05d.txt", freeFileIndex);
@@ -154,7 +156,7 @@ void storeData( void * pvParameters ){
     Serial.println("file creation failed");
   }
   for (int i = 0 ; i < img_index ; i++){
-    file.print((char)image_data[i]);
+    file.print((char)image_data2[i]);
   }
   file.close();
 
@@ -164,7 +166,8 @@ void storeData( void * pvParameters ){
   freeFileIndex++;
   
   if (freeFileIndex <= MAX_IMAGES) {
-    resetValues();
+    //resetValues();
+    img_index = 0x00; 
   } else {
     Serial.println("no more space on printer\nrebooting...");
     ESP.restart();
@@ -172,64 +175,6 @@ void storeData( void * pvParameters ){
   vTaskDelete( NULL );
 }
 #endif
-*/
-void storeData(byte *image_data) {
-  detachInterrupt(digitalPinToInterrupt(GB_SCLK));
-
-  unsigned long perf = millis();
-  char fileName[31];
-  oled_msg("Saving...");
-  sprintf(fileName, "/d/%05d.txt", freeFileIndex);
-
-  digitalWrite(LED_BLINK_PIN, LOW);
-
-  
-  #ifdef ESP8266
-    File file = FS.open(fileName, "w");
-  #endif  
-  #ifdef ESP32
-    File file = FS.open(fileName, FILE_WRITE);
-  #endif
-
-  if (!file) {
-    Serial.println("file creation failed");
-  }
-  
-  #ifdef ESP8266
-    file.write(image_data, img_index);
-  #endif  
-  #ifdef ESP32
-    for (int i = 0 ; i < img_index ; i++){
-      file.print((char)image_data[i]);
-    }
-  #endif
-  file.close();
-
-  perf = millis() - perf;
-  Serial.printf("File /d/%05d.txt written in %lums\n", freeFileIndex, perf);
-
-  freeFileIndex++;
-
-
-  #ifdef ESP8266
-    // ToDo: Handle percentages
-    int percUsed = fs_info();
-    if (percUsed > 5) {
-      resetValues();
-    } else {
-      Serial.println("no more space on printer\nrebooting...");
-      ESP.restart();
-    }
-  #endif  
-  #ifdef ESP32
-    if (freeFileIndex <= MAX_IMAGES) {
-      resetValues();
-    } else {
-      Serial.println("no more space on printer\nrebooting...");
-      ESP.restart();
-    }
-  #endif
-}
 
 
 // Blink if printer is full.
@@ -351,8 +296,7 @@ inline void gbp_packet_capture_loop() {
         digitalWrite(LED_BLINK_PIN, LOW);
         if (cmdPRNT.length() == 28) {
           if (((int)(cmdPRNT[15]-'0')) >= 1) {
-            storeData(image_data);
-            /*#ifdef ESP8266
+            #ifdef ESP8266
               storeData(image_data);
             #endif  
             #ifdef ESP32
@@ -360,11 +304,11 @@ inline void gbp_packet_capture_loop() {
                               storeData,        // Task function. 
                               "storeData",      // name of task. 
                               10000,       // Stack size of task 
-                              NULL,        // parameter of the task 
+                              (void*)&image_data,        // parameter of the task 
                               1,           // priority of the task 
                               &TaskWrite,      // Task handle to keep track of created task 
                               0);          // pin task to core 0 
-            #endif */
+            #endif 
                                
             chkHeader = 99;
           }

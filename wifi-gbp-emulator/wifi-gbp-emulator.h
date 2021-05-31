@@ -53,8 +53,6 @@
 #define GB_SCLK 14
 #endif
 
-
-
 #ifdef ESP8266
   #ifdef FSTYPE_LITTLEFS
     #include <LittleFS.h>
@@ -67,13 +65,6 @@
 #ifdef ESP32
   #define FS SPIFFS
 #endif
-
-
-
-
-
-
-
 
 #define MODE_PRINT true
 #define MODE_SERVE false
