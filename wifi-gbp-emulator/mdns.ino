@@ -11,7 +11,8 @@ void mdns_setup() {
     }
   #endif  
   #ifdef ESP32
-    if (!MDNS.begin(DEFAULT_MDNS_NAME)) {
+    const char * mdnsNamec = mdnsName.c_str();
+    if (!MDNS.begin(mdnsNamec)) {
       Serial.println("Error setting up MDNS responder!");
     }
   #endif

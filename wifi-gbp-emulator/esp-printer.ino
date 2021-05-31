@@ -22,6 +22,8 @@ uint8_t gbp_serialIO_raw_buffer[GBP_BUFFER_SIZE] = {0};
 
 inline void gbp_packet_capture_loop();
 
+TaskHandle_t TaskWrite;
+
 /*******************************************************************************
   Utility Functions
 *******************************************************************************/
@@ -87,12 +89,14 @@ unsigned int nextFreeFileIndex() {
 
 void resetValues() {
   img_index = 0x00;
-
-  /* Attach ISR Again*/
-  #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
-    attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
-  #else
-    attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
+  
+  #ifdef ESP8266
+     /*Attach ISR Again*/
+    #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
+      attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
+    #else
+      attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
+    #endif
   #endif
 
   memset(image_data, 0x00, sizeof(image_data));
@@ -102,7 +106,75 @@ void resetValues() {
   digitalWrite(LED_BLINK_PIN, false);
   Serial.println("Printer ready.");
 }
+/*
+#ifdef ESP8266
+void storeData(byte *image_data) {
+  detachInterrupt(digitalPinToInterrupt(GB_SCLK));
 
+  unsigned long perf = millis();
+  char fileName[31];
+  oled_msg("Saving...");
+  sprintf(fileName, "/d/%05d.txt", freeFileIndex);
+  digitalWrite(LED_BLINK_PIN, LOW);
+  
+  File file = FS.open(fileName, "w");
+
+  if (!file) {
+    Serial.println("file creation failed");
+  }
+  file.write(image_data, img_index);
+  file.close();
+
+  perf = millis() - perf;
+  Serial.printf("File /d/%05d.txt written in %lums\n", freeFileIndex, perf);
+
+  freeFileIndex++;
+  
+  // ToDo: Handle percentages
+  int percUsed = fs_info();
+  if (percUsed > 5) {
+    resetValues();
+  } else {
+    Serial.println("no more space on printer\nrebooting...");
+    ESP.restart();
+  }  
+}
+#endif  
+#ifdef ESP32
+void storeData( void * pvParameters ){
+
+  unsigned long perf = millis();
+  char fileName[31];
+  
+  oled_msg("Saving...");
+  sprintf(fileName, "/d/%05d.txt", freeFileIndex);
+
+  digitalWrite(LED_BLINK_PIN, LOW);
+
+  File file = FS.open(fileName, FILE_WRITE);
+  if (!file) {
+    Serial.println("file creation failed");
+  }
+  for (int i = 0 ; i < img_index ; i++){
+    file.print((char)image_data[i]);
+  }
+  file.close();
+
+  perf = millis() - perf;
+  Serial.printf("File /d/%05d.txt written in %lums\n", freeFileIndex, perf);
+
+  freeFileIndex++;
+  
+  if (freeFileIndex <= MAX_IMAGES) {
+    resetValues();
+  } else {
+    Serial.println("no more space on printer\nrebooting...");
+    ESP.restart();
+  }         
+  vTaskDelete( NULL );
+}
+#endif
+*/
 void storeData(byte *image_data) {
   detachInterrupt(digitalPinToInterrupt(GB_SCLK));
 
@@ -161,6 +233,7 @@ void storeData(byte *image_data) {
   #endif
 }
 
+
 // Blink if printer is full.
 void full() {
   Serial.println("no more space on printer");
@@ -178,6 +251,7 @@ void full() {
 }
 
 void espprinter_setup() {
+  
   // Setup ports
   pinMode(GB_MISO, OUTPUT);
   pinMode(GB_MOSI, INPUT);
@@ -280,6 +354,20 @@ inline void gbp_packet_capture_loop() {
         if (cmdPRNT.length() == 28) {
           if (((int)(cmdPRNT[15]-'0')) >= 1) {
             storeData(image_data);
+            /*#ifdef ESP8266
+              storeData(image_data);
+            #endif  
+            #ifdef ESP32
+              xTaskCreatePinnedToCore(
+                              storeData,        // Task function. 
+                              "storeData",      // name of task. 
+                              10000,       // Stack size of task 
+                              NULL,        // parameter of the task 
+                              1,           // priority of the task 
+                              &TaskWrite,      // Task handle to keep track of created task 
+                              0);          // pin task to core 0 
+            #endif */
+                               
             chkHeader = 99;
           }
           cmdPRNT = "";

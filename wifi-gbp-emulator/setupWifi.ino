@@ -43,7 +43,6 @@ void setupWifi() {
         for(JsonVariant networkSetting : networks) {
           const char *ssid = networkSetting["ssid"].as<const char*>();
           const char *password = networkSetting["psk"].as<const char*>();
-
           if (ssid != "null" && ssid != "" && password != "") {
             wifiMulti.addAP(ssid, password);
             hasNetworkSettings = true;
@@ -76,8 +75,13 @@ void setupWifi() {
 
   // Connect to existing WiFi
   if (hasNetworkSettings) {
-    Serial.print("Connecting to wifi ");
-    WiFi.mode(WIFI_STA);
+    Serial.print("Connecting to wifi ");  
+    #ifdef ESP8266
+      WiFi.mode(WIFI_STA);
+    #endif  
+    #ifdef ESP32
+      WiFi.mode(WIFI_MODE_STA);
+    #endif
 
     bool connectionBlink = false;
     unsigned int connTimeout = millis() + WIFI_CONNECT_TIMEOUT;
@@ -112,15 +116,21 @@ void setupWifi() {
     Serial.println(WiFi.localIP());
     return;
   } else {
-    WiFi.mode(WIFI_AP);
+
+    #ifdef ESP8266
+      WiFi.mode(WIFI_AP);
+    #endif  
+    #ifdef ESP32
+      WiFi.mode(WIFI_MODE_AP);
+    #endif
+    
     #ifdef ESP8266
       WiFi.softAP(accesPointSSID, accesPointPassword);
     #endif
     #ifdef ESP32
-      char accesPointSSIDc[40];
-      char accesPointPasswordc[40];
-      sprintf(accesPointSSIDc, "%d", accesPointSSID);
-      sprintf(accesPointPasswordc, "%d", accesPointPassword);
+      const char * accesPointSSIDc = accesPointSSID.c_str();
+      const char * accesPointPasswordc = accesPointPassword.c_str();
+      
       WiFi.softAP(accesPointSSIDc, accesPointPasswordc);
     #endif
     Serial.println("AccessPoint " + accesPointSSID + " started");

@@ -28,16 +28,6 @@
 #ifndef DEFAULT_MDNS_NAME
 #define DEFAULT_MDNS_NAME "gameboyprinter"
 #endif
-/*
-#ifndef WIFI_CONNECT_TIMEOUT
-  #ifdef ESP8266
-    #define WIFI_CONNECT_TIMEOUT 10000
-  #endif
-  #ifdef ESP32
-    #define WIFI_CONNECT_TIMEOUT 60000
-  #endif
-#endif
-*/
 #ifndef WIFI_CONNECT_TIMEOUT
 #define WIFI_CONNECT_TIMEOUT 10000
 #endif
