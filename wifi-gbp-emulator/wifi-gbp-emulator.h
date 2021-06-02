@@ -10,7 +10,6 @@
 #endif
 #ifdef ESP32
   #include "FS.h"
-  #include "SPIFFS.h"
   #include <WiFi.h>
   #include <WiFiMulti.h>
   #include <WebServer.h>
@@ -61,9 +60,14 @@
     #define FS SPIFFS
   #endif
 #endif
-
 #ifdef ESP32
-  #define FS SPIFFS
+  #ifdef FSTYPE_LITTLEFS
+    #include <LITTLEFS.h>
+    #define FS LITTLEFS
+  #else
+    #include "SPIFFS.h"
+    #define FS SPIFFS
+  #endif
 #endif
 
 #define MODE_PRINT true

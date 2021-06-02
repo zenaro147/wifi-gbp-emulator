@@ -20,13 +20,11 @@ void clearDumps() {
     Dir dumpDir = FS.openDir("/d/");
   
     while(dumpDir.next()) {
-  
       #ifdef FSTYPE_LITTLEFS
         FS.remove("/d/" + dumpDir.fileName());
       #else
         FS.remove(dumpDir.fileName());
       #endif
-  
       dumpcount++;
     }
   #endif  
@@ -37,14 +35,13 @@ void clearDumps() {
     char filename[12]; 
   
     while(file) {
-      sprintf(filename, "/d/%d", file.name());
-      FS.remove(filename);
+      sprintf(filename, "/d/%s", file.name());
       dumpcount++;    
       file = dumpDir.openNextFile();
+      FS.remove(filename);
     }
   #endif
-
-
+  
   char out[24];
   sprintf(out, "{\"deleted\":%d}", dumpcount);
   server.sendHeader("Access-Control-Allow-Origin", "*");
@@ -91,8 +88,7 @@ void getDumpsList() {
   #endif  
   #ifdef ESP32
     File dumpDir = FS.open("/d");
-    
-    //Random Values. Need find some way to get this
+    //Random Values. Need find some way to get this values
     unsigned long total = 1953282;
     unsigned long used = 655863;
     unsigned long avail = 1297419;
@@ -105,16 +101,17 @@ void getDumpsList() {
       } else {
         sep = true;
       }    
-      dumpList += "\"";
-      dumpList += "/dumps/d/";
+
+      #ifdef FSTYPE_LITTLEFS
+        dumpList += "/dumps/";
+      #else
+        dumpList += "/dumps/d/" ;
+      #endif
       dumpList += file.name();
       dumpList += "\"";
       file = dumpDir.openNextFile();
     }  
   #endif 
-
-
-  
 
   char fs[100];
   sprintf(fs, "{\"total\":%d,\"used\":%d,\"available\":%d,\"maximages\":%d,\"dumpcount\":%d}", total, used, avail, MAX_IMAGES, dumpcount);
@@ -179,7 +176,6 @@ void setConfig() {
 // stream binary dump data to web-client
 void handleDump() {
   String path = "/d/" + server.pathArg(0);
-
   #ifdef ESP8266
     if(FS.exists(path)) {
       File file = FS.open(path, "r");
@@ -215,8 +211,8 @@ void handleDump() {
     }
   #endif  
   #ifdef ESP32
-    File file = FS.open(path);
-
+    File file = FS.open(path); //check what print here
+    Serial.println(path);
     if(!file || file.isDirectory()){
       Serial.println("failed to open file for reading");
       return;
@@ -259,6 +255,7 @@ void handleDump() {
 }
 
 bool handleFileRead(String path) {
+ 
   path = "/w" + path;
 
   if (path.endsWith("/")) {
@@ -282,6 +279,7 @@ bool handleFileRead(String path) {
     }
   #endif  
   #ifdef ESP32
+    //
     File file1 = FS.open(path);
     File file2 = FS.open(pathWithGz);
     

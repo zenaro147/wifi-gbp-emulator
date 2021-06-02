@@ -10,12 +10,15 @@ void createEmptyConfig() {
   Serial.println("Preparing empty conf.json. \nYou can configure WiFi-Settings via the web interface.");
   #ifdef ESP8266
     File confFileEmpty = FS.open("/conf.json", "w");
+    confFileEmpty.println("{}");
+    confFileEmpty.close();
   #endif  
   #ifdef ESP32
     File confFileEmpty = FS.open("/conf.json", FILE_WRITE);
+    confFileEmpty.println("{}");
+    confFileEmpty.close();    
   #endif
-  confFileEmpty.println("{}");
-  confFileEmpty.close();
+
 }
 
 void setupWifi() {

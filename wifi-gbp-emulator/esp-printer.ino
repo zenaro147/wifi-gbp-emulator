@@ -46,11 +46,11 @@ const char *gbpCommand_toStr(int val) {
 #ifdef ESP8266
 void ICACHE_RAM_ATTR serialClock_ISR(void)
 #else
-  #ifdef ESP32
-    void ICACHE_RAM_ATTR serialClock_ISR(void)
-  #else
+  //#ifdef ESP32
+  //  void ICACHE_RAM_ATTR serialClock_ISR(void)
+  //#else
     void serialClock_ISR(void)
-  #endif
+  //#endif
 #endif
 {
   // Serial Clock (1 = Rising Edge) (0 = Falling Edge); Master Output Slave Input (This device is slave)
@@ -89,23 +89,24 @@ unsigned int nextFreeFileIndex() {
 
 void resetValues() {
   img_index = 0x00;  
+  memset(image_data, 0x00, sizeof(image_data));
 
   #ifdef ESP8266
     /*Attach ISR Again*/
     #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
-      attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
+      attachInterrupt(digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
     #else
-      attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
+      attachInterrupt(digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
     #endif
-  #endif  
-
-  memset(image_data, 0x00, sizeof(image_data));
+  #endif   
+  
   showPrinterStats();
 
   // Turn LED ON
   digitalWrite(LED_BLINK_PIN, false);
   Serial.println("Printer ready.");
 }
+
 #ifdef ESP8266
 void storeData(byte *image_data) {
   detachInterrupt(digitalPinToInterrupt(GB_SCLK));
@@ -141,7 +142,8 @@ void storeData(byte *image_data) {
 #endif  
 #ifdef ESP32
 void storeData( void *pvParameters ){
-
+  
+  Serial.println("Writing...");
   unsigned long perf = millis();
   char fileName[31];
   byte *image_data2 = ((byte*)pvParameters);
@@ -150,14 +152,14 @@ void storeData( void *pvParameters ){
   sprintf(fileName, "/d/%05d.txt", freeFileIndex);
 
   digitalWrite(LED_BLINK_PIN, LOW);
-
+  
+  Serial.println("Writing...");
+  
   File file = FS.open(fileName, FILE_WRITE);
-  if (!file) {
+  if (!file) {    
     Serial.println("file creation failed");
   }
-  for (int i = 0 ; i < img_index ; i++){
-    file.print((char)image_data2[i]);
-  }
+  file.write(image_data2, img_index);
   file.close();
 
   perf = millis() - perf;
@@ -166,8 +168,7 @@ void storeData( void *pvParameters ){
   freeFileIndex++;
   
   if (freeFileIndex <= MAX_IMAGES) {
-    //resetValues();
-    img_index = 0x00; 
+    resetValues();
   } else {
     Serial.println("no more space on printer\nrebooting...");
     ESP.restart();
@@ -259,7 +260,6 @@ inline void gbp_packet_capture_loop() {
   ) {
     const char nibbleToCharLUT[] = "0123456789ABCDEF";
     uint8_t data_8bit = 0;
-
     // Display the data payload encoded in hex
     for (int i = 0 ; i < dataBuffCount ; i++) {
       // Start of a new packet
@@ -291,15 +291,19 @@ inline void gbp_packet_capture_loop() {
         //Serial.print((char)nibbleToCharLUT[(data_8bit>>0)&0xF]);
       }
 
+
       // Splitting packets for convenience
       if ((pktByteIndex > 5) && (pktByteIndex >= (9 + pktDataLength))) {
+        Serial.println("Check para gravar");
         digitalWrite(LED_BLINK_PIN, LOW);
         if (cmdPRNT.length() == 28) {
+          Serial.println("Check para gravar2");
           if (((int)(cmdPRNT[15]-'0')) >= 1) {
             #ifdef ESP8266
               storeData(image_data);
             #endif  
             #ifdef ESP32
+              Serial.println("Cria Task");
               xTaskCreatePinnedToCore(
                               storeData,        // Task function. 
                               "storeData",      // name of task. 
@@ -308,8 +312,7 @@ inline void gbp_packet_capture_loop() {
                               1,           // priority of the task 
                               &TaskWrite,      // Task handle to keep track of created task 
                               0);          // pin task to core 0 
-            #endif 
-                               
+            #endif          
             chkHeader = 99;
           }
           cmdPRNT = "";

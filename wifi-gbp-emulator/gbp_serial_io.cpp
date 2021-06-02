@@ -45,8 +45,13 @@
 // Feature
 //#define FEATURE_CHECKSUM_SUPPORTED ///< WIP
 
-#define GBP_BUSY_PACKET_COUNT 3 // 68 Inquiry packets is generally approximately how long it takes for a real printer to print. This is not a real printer so can be shorter
-
+#ifdef ESP8266
+  #define GBP_BUSY_PACKET_COUNT 3 // 68 Inquiry packets is generally approximately how long it takes for a real printer to print. This is not a real printer so can be shorter
+#endif  
+#ifdef ESP32
+  // Can be lower, but for now, use this value
+  #define GBP_BUSY_PACKET_COUNT 68 // 68 Inquiry packets is generally approximately how long it takes for a real printer to print. This is not a real printer so can be shorter
+#endif
 
 /******************************************************************************/
 
@@ -588,7 +593,7 @@ bool gpb_serial_io_OnChange_ISR(const bool GBP_SCLK, const bool GBP_SOUT)
             {
               gpb_status_bit_update_unprocessed_data(gpb_pktIO.statusBuffer, false);
               if (gpb_pktIO.busyPacketCountdown > 0)
-              {
+              {             
                 gpb_status_bit_update_printer_busy(gpb_pktIO.statusBuffer, true);
                 gpb_status_bit_update_print_buffer_full(gpb_pktIO.statusBuffer, true);
               }

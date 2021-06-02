@@ -14,11 +14,10 @@ void fs_setup() {
   #endif  
   #ifdef ESP32
     if (!FS.begin(true)) {
-      Serial.println("An Error has occurred while mounting SPIFFS");
+      Serial.println("LITTLEFS Mount Failed");
       return;
     }
   #endif
-  
   Serial.println(" done");
 }
 
