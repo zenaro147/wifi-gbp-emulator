@@ -47,7 +47,14 @@ void setupWifi() {
           const char *ssid = networkSetting["ssid"].as<const char*>();
           const char *password = networkSetting["psk"].as<const char*>();
           if (ssid != "null" && ssid != "" && password != "") {
-            wifiMulti.addAP(ssid, password);
+            #ifdef ESP8266
+              wifiMulti.addAP(ssid, password);
+            #endif  
+            #ifdef ESP32
+              if (!hasNetworkSettings){
+                WiFi.begin(ssid, password);
+              }
+            #endif
             hasNetworkSettings = true;
           }
         }
@@ -90,25 +97,49 @@ void setupWifi() {
     unsigned int connTimeout = millis() + WIFI_CONNECT_TIMEOUT;
     unsigned int connTick = 0;
 
-    while (hasNetworkSettings && (wifiMulti.run() != WL_CONNECTED)) {
-      delay(250);
-      digitalWrite(LED_BLINK_PIN, connectionBlink);
-      connectionBlink = !connectionBlink;
-      connTick++;
-
-      unsigned int remain = connTimeout - millis();
-      if (remain <= 0 || remain > WIFI_CONNECT_TIMEOUT) {
-        Serial.println("WiFi Connection timeout - starting AccesPoint");
-        hasNetworkSettings = false;
+    #ifdef ESP8266
+       while (hasNetworkSettings && (wifiMulti.run() != WL_CONNECTED)) {
+        delay(250);
+        digitalWrite(LED_BLINK_PIN, connectionBlink);
+        connectionBlink = !connectionBlink;
+        connTick++;
+  
+        unsigned int remain = connTimeout - millis();
+        if (remain <= 0 || remain > WIFI_CONNECT_TIMEOUT) {
+          Serial.println("WiFi Connection timeout - starting AccesPoint");
+          hasNetworkSettings = false;
+        }
+  
+        if (connTick % 4 == 0) {
+          Serial.print(".");
+          #ifdef USE_OLED
+          oled_msg("Connecting to wifi...", String(remain / 1000) + "s");
+          #endif
+        }
       }
-
-      if (connTick % 4 == 0) {
-        Serial.print(".");
-        #ifdef USE_OLED
-        oled_msg("Connecting to wifi...", String(remain / 1000) + "s");
-        #endif
+    #endif  
+    #ifdef ESP32
+       while (hasNetworkSettings && (WiFi.status() != WL_CONNECTED)) {
+        delay(250);
+        digitalWrite(LED_BLINK_PIN, connectionBlink);
+        connectionBlink = !connectionBlink;
+        connTick++;
+  
+        unsigned int remain = connTimeout - millis();
+        if (remain <= 0 || remain > WIFI_CONNECT_TIMEOUT) {
+          Serial.println("WiFi Connection timeout - starting AccesPoint");
+          hasNetworkSettings = false;
+        }
+  
+        if (connTick % 4 == 0) {
+          Serial.print(".");
+          #ifdef USE_OLED
+          oled_msg("Connecting to wifi...", String(remain / 1000) + "s");
+          #endif
+        }
       }
-    }
+    #endif
+    
   }
 
   // will be false if no connection to any ssid could be made

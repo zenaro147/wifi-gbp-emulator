@@ -22,8 +22,9 @@ uint8_t gbp_serialIO_raw_buffer[GBP_BUFFER_SIZE] = {0};
 
 inline void gbp_packet_capture_loop();
 
-TaskHandle_t TaskWrite;
-
+#ifdef ESP32
+  TaskHandle_t TaskWrite;
+#endif
 /*******************************************************************************
   Utility Functions
 *******************************************************************************/
