@@ -10,5 +10,3 @@ ESP32 Only:
 *WiFi doesn't connect (using WifiMulti). Only Access Point works;
 
 *Some OLED display glitches;
-
-*Some features from Web-app doesn't work properly
