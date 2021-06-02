@@ -2,6 +2,8 @@
 A GameBoy printer emulator which provides the received data over a WiFi connection  
 This code has been originally created for a "LOLIN(WEMOS) D1 R2 & mini" [ESP8266 based board](https://github.com/esp8266/arduino) and now adapted for a "DOIT ESP32 DEVKIT V1" [ESP32 based board](https://github.com/espressif/arduino-esp32)
 
+You can use the same code as well on a ESP8266, if you use it, I recommend to follow the instructions from the [Original Author](https://github.com/HerrZatacke/wifi-gbp-emulator)
+
 The required (recommended) [gameboy printer web interface can be found on github as well](https://github.com/HerrZatacke/gb-printer-web/)  
 
 This (for now) is a Prototype branch to use the original code into the ESP32 (and maybe get some advantages from his hardware, like the dual core)
