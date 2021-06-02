@@ -13,8 +13,6 @@
 // Uncomment if using an adafruit oled display
 // #define USE_OLED
 // Alternative OLED Pins
-// ESP8266: OLED_SDA 4 - OLED_SCL 5
-// ESP32: OLED_SDA 21 - OLED_SCL 22
 // #define OLED_SDA 0
 // #define OLED_SCL 4
 // you can invert the display to easily spot the actual dimensions
@@ -33,8 +31,6 @@
 
 // Define different PINS depending on your hardware
 // #define LED_BLINK_PIN 2
-// ESP8266: GB_MISO 12 - GB_MOSI 13 - GB_SCLK 14
-// ESP32: GB_MISO 19 - GB_MOSI 23 - GB_SCLK 18
 // #define GB_MISO 12
 // #define GB_MOSI 13
 // #define GB_SCLK 14
