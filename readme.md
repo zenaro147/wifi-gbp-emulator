@@ -7,8 +7,8 @@ This is (for now) a Prototybe branch to use the original code into the ESP32 (an
 # Known Bugs
 ESP32 Only:
 
-*WiFi doesn't connect (using WifiMulti)
+*WiFi doesn't connect (using WifiMulti). Only Access Point works;
 
-*Batch Print from Gameboy Camera stop writing files after a while, but the data stream doesn't stop (maybe the FileSystem is based on LittleFS?)
+*Some OLED display glitches;
 
-*Some OLED display glitches
+*Some features from Web-app doesn't work properly
