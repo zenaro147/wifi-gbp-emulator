@@ -101,7 +101,7 @@ void getDumpsList() {
       } else {
         sep = true;
       }    
-
+      dumpList += "\"";
       #ifdef FSTYPE_LITTLEFS
         dumpList += "/dumps/";
       #else
