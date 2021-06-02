@@ -1,6 +1,5 @@
 
-// LittleFS _seems_ 100% slower than SPIFFS in this use-case
-// enable only if you think you know what you are doing
+// LittleFS _seems_ 100% slower than SPIFFS in this use-case on ESP8266, but works fine on ESP32
 // #define FSTYPE_LITTLEFS
 
 // Sense boot mode lets you use the signal on pin GB_5V_OUT to determine printer/server mode
