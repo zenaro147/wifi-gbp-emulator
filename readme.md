@@ -116,4 +116,3 @@ The display will show the current wifi-config while in server mode, as well as t
 ESP32 Only:
 * WifiMulti doesn't work properly. Only Access Point works or using a single Wifi Network;
 * Some OLED display glitches;
-* Batch Print sometimes stops to write, but back to normal when reboots the board;
