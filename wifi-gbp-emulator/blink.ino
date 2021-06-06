@@ -18,7 +18,7 @@ void wifi_blink_loop() {
     }
 
     #ifdef LED_BLINK_PIN
-    digitalWrite(LED_BLINK_PIN, cycle ? LOW : HIGH);
+      digitalWrite(LED_BLINK_PIN, cycle ? LOW : HIGH);
     #endif
   }
 }

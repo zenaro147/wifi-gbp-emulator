@@ -8,9 +8,9 @@ unsigned int nextFreeFileIndex();
 unsigned int freeFileIndex = 0;
 
 String cmdPRNT="";
-int chkHeader=99;
+uint8_t chkHeader=99;
 
-byte image_data[30000] = {};
+byte image_data[40000] = {}; //moreless 14 photos (82.236) (max:86360)
 uint32_t img_index=0x00;
 
 // Dev Note: Gamboy camera sends data payload of 640 bytes usually
@@ -24,6 +24,8 @@ inline void gbp_packet_capture_loop();
 
 #ifdef ESP32
   TaskHandle_t TaskWrite;
+  bool isPrinting = false;
+  bool detachRun = false;
 #endif
 /*******************************************************************************
   Utility Functions
@@ -44,24 +46,18 @@ const char *gbpCommand_toStr(int val) {
   Interrupt Service Routine
 *******************************************************************************/
 
-#ifdef ESP8266
 void ICACHE_RAM_ATTR serialClock_ISR(void)
-#else
-  //#ifdef ESP32
-  //  void ICACHE_RAM_ATTR serialClock_ISR(void)
-  //#else
-    void serialClock_ISR(void)
-  //#endif
-#endif
 {
   // Serial Clock (1 = Rising Edge) (0 = Falling Edge); Master Output Slave Input (This device is slave)
-#ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
-  const bool txBit = gpb_serial_io_OnRising_ISR(digitalRead(GB_MOSI));
-#else
-  const bool txBit = gpb_serial_io_OnChange_ISR(digitalRead(GB_SCLK), digitalRead(GB_MOSI));
-#endif
-  digitalWrite(GB_MISO, txBit ? HIGH : LOW);
+  #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
+    const bool txBit = gpb_serial_io_OnRising_ISR(digitalRead(GB_MOSI));
+  #else
+    const bool txBit = gpb_serial_io_OnChange_ISR(digitalRead(GB_SCLK), digitalRead(GB_MOSI));
+  #endif
+    digitalWrite(GB_MISO, txBit ? HIGH : LOW);
 }
+
+
 
 unsigned int nextFreeFileIndex() {
   #ifdef ESP8266
@@ -73,7 +69,7 @@ unsigned int nextFreeFileIndex() {
       }
     }
     return MAX_IMAGES + 1;
-  #endif  
+  #endif
   #ifdef ESP32
     int totFiles = 0;
     File root = FS.open("/d");
@@ -88,8 +84,11 @@ unsigned int nextFreeFileIndex() {
   #endif
 }
 
+
+
 void resetValues() {
-  img_index = 0x00;  
+  img_index = 0x00; 
+  
   memset(image_data, 0x00, sizeof(image_data));
 
   #ifdef ESP8266
@@ -100,83 +99,93 @@ void resetValues() {
       attachInterrupt(digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
     #endif
   #endif   
+  #ifdef ESP32
+    if (detachRun){
+      /*Attach ISR Again*/
+      #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
+        attachInterrupt(digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
+      #else
+        attachInterrupt(digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
+      #endif
+      detachRun = false;
+    }
+    showPrinterStats();
+    gbp_serial_io_print_done();
+  #endif
   
-  showPrinterStats();
-
   // Turn LED ON
   digitalWrite(LED_BLINK_PIN, false);
   Serial.println("Printer ready.");
 }
 
-#ifdef ESP8266
-void storeData(byte *image_data) {
-  detachInterrupt(digitalPinToInterrupt(GB_SCLK));
 
+
+#ifdef ESP8266
+  void storeData(byte *image_data)
+#endif
+#ifdef ESP32
+  void storeData(void *pvParameters)
+#endif
+{
+  #ifdef ESP8266
+    detachInterrupt(digitalPinToInterrupt(GB_SCLK));
+  #endif
+  #ifdef ESP32
+    byte *image_data2 = ((byte*)pvParameters);
+  #endif
+  
   unsigned long perf = millis();
   char fileName[31];
   oled_msg("Saving...");
+  
   sprintf(fileName, "/d/%05d.txt", freeFileIndex);
   digitalWrite(LED_BLINK_PIN, LOW);
-  
-  File file = FS.open(fileName, "w");
+
+  #ifdef ESP8266
+    File file = FS.open(fileName, "w");
+  #endif
+  #ifdef ESP32
+    File file = FS.open(fileName, FILE_WRITE);
+  #endif
 
   if (!file) {
     Serial.println("file creation failed");
   }
-  file.write(image_data, img_index);
+  
+  #ifdef ESP8266
+    file.write(image_data, img_index);
+  #endif
+  #ifdef ESP32
+    file.write(image_data2, img_index);
+  #endif 
   file.close();
 
   perf = millis() - perf;
   Serial.printf("File /d/%05d.txt written in %lums\n", freeFileIndex, perf);
 
   freeFileIndex++;
-  
-  // ToDo: Handle percentages
-  int percUsed = fs_info();
-  if (percUsed > 5) {
-    resetValues();
-  } else {
-    Serial.println("no more space on printer\nrebooting...");
-    ESP.restart();
-  }  
+
+  #ifdef ESP8266
+    // ToDo: Handle percentages
+    int percUsed = fs_info();
+    if (percUsed > 5) {
+      resetValues();
+    } else {
+      Serial.println("no more space on printer\nrebooting...");
+      ESP.restart();
+    }  
+  #endif
+  #ifdef ESP32
+    if (freeFileIndex <= MAX_IMAGES) {
+      resetValues();      
+    } else {
+      Serial.println("no more space on printer\nrebooting...");
+      ESP.restart();
+    }
+    vTaskDelete( NULL );
+  #endif 
 }
-#endif  
-#ifdef ESP32
-void storeData( void *pvParameters ){
-  
-  Serial.println("Writing...");
-  unsigned long perf = millis();
-  char fileName[31];
-  byte *image_data2 = ((byte*)pvParameters);
-  
-  oled_msg("Saving...");
-  sprintf(fileName, "/d/%05d.txt", freeFileIndex);
 
-  digitalWrite(LED_BLINK_PIN, LOW);
-  
-  Serial.println("Writing...");
-  
-  File file = FS.open(fileName, FILE_WRITE);
-  if (!file) {    
-    Serial.println("file creation failed");
-  }
-  file.write(image_data2, img_index);
-  file.close();
-
-  perf = millis() - perf;
-  Serial.printf("File /d/%05d.txt written in %lums\n", freeFileIndex, perf);
-
-  freeFileIndex++;
-  
-  if (freeFileIndex <= MAX_IMAGES) {
-    resetValues();
-  } else {
-    Serial.println("no more space on printer\nrebooting...");
-    ESP.restart();
-  }         
-  vTaskDelete( NULL );
-}
-#endif
 
 
 // Blink if printer is full.
@@ -184,7 +193,7 @@ void full() {
   Serial.println("no more space on printer");
 
   #ifdef USE_OLED
-  oled_msg((String)"Printer is full :-(");
+    oled_msg((String)"Printer is full :-(");
   #endif
 
   while(true) {
@@ -195,8 +204,9 @@ void full() {
   }
 }
 
+
+
 void espprinter_setup() {
-  
   // Setup ports
   pinMode(GB_MISO, OUTPUT);
   pinMode(GB_MOSI, INPUT);
@@ -218,34 +228,32 @@ void espprinter_setup() {
 
   /* Attach ISR */
   #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
-  attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
+    attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
   #else
-  attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
+    attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
   #endif
 }
 
 
 #ifdef USE_OLED
-void showPrinterStats() {
-  #ifdef ESP8266
+  void showPrinterStats() {
     char printed[20];
-    int percUsed = fs_info();
-    sprintf(printed, "%3d files", freeFileIndex - 1);
-    oled_msg(((String)percUsed)+((char)'%')+" remaining",printed);
+    #ifdef ESP8266
+      int percUsed = fs_info();
+      sprintf(printed, "%3d files", freeFileIndex - 1);
+      oled_msg(((String)percUsed)+((char)'%')+" remaining",printed);
+    #endif
+    #ifdef ESP32
+      char remain[20];
+      sprintf(printed, "%3d printed", freeFileIndex - 1);
+      sprintf(remain, "%3d remaining", MAX_IMAGES + 1 - freeFileIndex);
+      oled_msg(
+        printed,
+        remain
+      );
+    #endif
     oled_drawLogo();
-  #endif  
-  #ifdef ESP32
-    char printed[20];
-    char remain[20];
-    sprintf(printed, "%3d printed", freeFileIndex - 1);
-    sprintf(remain, "%3d remaining", MAX_IMAGES + 1 - freeFileIndex);
-    oled_msg(
-      printed,
-      remain
-    );
-    oled_drawLogo();
-  #endif
-}
+  }
 #endif
 
 inline void gbp_packet_capture_loop() {
@@ -261,8 +269,14 @@ inline void gbp_packet_capture_loop() {
   ) {
     const char nibbleToCharLUT[] = "0123456789ABCDEF";
     uint8_t data_8bit = 0;
+
     // Display the data payload encoded in hex
     for (int i = 0 ; i < dataBuffCount ; i++) {
+      #ifdef ESP32
+        if (!isPrinting){
+          isPrinting = true;
+        }
+      #endif
       // Start of a new packet
       if (pktByteIndex == 0) {
         pktDataLength = gbp_serial_io_dataBuff_getByte_Peek(4);
@@ -284,45 +298,41 @@ inline void gbp_packet_capture_loop() {
         img_index++;
 
         cmdPRNT = cmdPRNT+((char)nibbleToCharLUT[(data_8bit>>4)&0xF]) + ((char)nibbleToCharLUT[(data_8bit>>0)&0xF]);
-        //Serial.print((String)data_8bit);
       } else if (chkHeader == 1 || (chkHeader == 4 && pktDataLength > 9)) {
         image_data[img_index] = (byte)data_8bit;
         img_index++;
-        //Serial.print((char)nibbleToCharLUT[(data_8bit>>4)&0xF]);
-        //Serial.print((char)nibbleToCharLUT[(data_8bit>>0)&0xF]);
       }
-
-
+      
       // Splitting packets for convenience
       if ((pktByteIndex > 5) && (pktByteIndex >= (9 + pktDataLength))) {
-        Serial.println("Check para gravar");
         digitalWrite(LED_BLINK_PIN, LOW);
         if (cmdPRNT.length() == 28) {
-          Serial.println("Check para gravar2");
-          if (((int)(cmdPRNT[15]-'0')) >= 1) {
+          if (((int)(cmdPRNT[15]-'0')) > 0) {
             #ifdef ESP8266
               storeData(image_data);
-            #endif  
+            #endif
             #ifdef ESP32
-              Serial.println("Cria Task");
-              xTaskCreatePinnedToCore(
-                              storeData,        // Task function. 
-                              "storeData",      // name of task. 
-                              10000,       // Stack size of task 
-                              (void*)&image_data,        // parameter of the task 
-                              1,           // priority of the task 
-                              &TaskWrite,      // Task handle to keep track of created task 
-                              0);          // pin task to core 0 
-            #endif          
+              if (img_index > 35200) {
+                xTaskCreatePinnedToCore(
+                                        storeData,            // Task function. 
+                                        "storeData",          // name of task. 
+                                        10000,                // Stack size of task 
+                                        (void*)&image_data,   // parameter of the task 
+                                        1,                    // priority of the task 
+                                        &TaskWrite,           // Task handle to keep track of created task 
+                                        0);                   // pin task to core 0 
+              }else{
+                gbp_serial_io_print_done();
+              }
+            #endif
             chkHeader = 99;
           }
+          gbp_serial_io_print_done();
           cmdPRNT = "";
         }
-        //Serial.println("");
         pktByteIndex = 0;
         pktTotalCount++;
       } else {
-        //Serial.print((char)' ');
         pktByteIndex++; // Byte hex split counter
         byteTotal++; // Byte total counter
       }
@@ -331,10 +341,8 @@ inline void gbp_packet_capture_loop() {
 }
 
 void espprinter_loop() {
-  static uint16_t sioWaterline = 0;
-
   gbp_packet_capture_loop();
-
+  
   // Trigger Timeout and reset the printer if byte stopped being received.
   static uint32_t last_millis = 0;
   uint32_t curr_millis = millis();
@@ -342,8 +350,20 @@ void espprinter_loop() {
     uint32_t elapsed_ms = curr_millis - last_millis;
     if (gbp_serial_io_timeout_handler(elapsed_ms)) {
       digitalWrite(LED_BLINK_PIN, LOW);
+      if (img_index > 0 && isPrinting){
+        isPrinting = false;
+        detachInterrupt(digitalPinToInterrupt(GB_SCLK));
+        detachRun = true;
+        xTaskCreatePinnedToCore(
+                                storeData,            // Task function. 
+                                "storeData",          // name of task. 
+                                10000,                // Stack size of task 
+                                (void*)&image_data,   // parameter of the task 
+                                1,                    // priority of the task 
+                                &TaskWrite,           // Task handle to keep track of created task 
+                                0);                   // pin task to core 0 
+      }
     }
   }
-
-  last_millis = curr_millis;
+  last_millis = curr_millis;  
 }

@@ -11,6 +11,13 @@ void fs_setup() {
       }
       FS.gc();
     }
+    
+    Dir dir = SPIFFS.openDir("/w");
+    while (dir.next ()) {
+      Serial.print(dir.fileSize());
+      Serial.print("\t\t");
+      Serial.println(dir.fileName());
+    }
   #endif  
   #ifdef ESP32
     if (!FS.begin(true)) {
@@ -65,19 +72,17 @@ bool fs_alternateBootMode() {
     }
     file.close();
     FS.remove(path);
-  
+
+    file = FS.open(path, FILE_WRITE);
     if (bootmode == "SERV"){
-      file = FS.open(path, FILE_WRITE);
       file.print("PRNT");
       file.close();    
       return false;
     }else{
-      file = FS.open(path, FILE_WRITE);
       file.print("SERV");
       file.close();    
       return true;
     }
   #endif
-  
 }
 #endif

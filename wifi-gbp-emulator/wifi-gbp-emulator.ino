@@ -11,12 +11,8 @@ bool bootMode;
 
 void setup() {
 
-  #ifdef ESP8266
-    Serial.begin(38400);
-  #endif
-  #ifdef ESP32
-    Serial.begin(115200);
-  #endif
+  Serial.begin(38400);
+
   Serial.println("\n\n\n\n");
 
   #ifdef USE_OLED
@@ -32,9 +28,9 @@ void setup() {
   pinMode(LED_BLINK_PIN, OUTPUT);
 
   #ifdef SENSE_BOOT_MODE
-  bootMode = digitalRead(GB_5V_OUT);
+    bootMode = digitalRead(GB_5V_OUT);
   #else
-  bootMode = fs_alternateBootMode();
+    bootMode = fs_alternateBootMode();
   #endif
 
 
@@ -57,7 +53,7 @@ void setup() {
     fs_info();
     espprinter_setup();
     #ifdef USE_OLED
-    showPrinterStats();
+      showPrinterStats();
     #endif
   } else {
     Serial.println("-----------------------");

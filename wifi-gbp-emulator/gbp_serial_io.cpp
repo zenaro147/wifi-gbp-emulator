@@ -36,7 +36,7 @@
 
 /******************************************************************************/
 
-#define GBP_PKT10_TIMEOUT_MS 500
+#define GBP_PKT10_TIMEOUT_MS 3000//500
 
 // Testing
 //#define TEST_CHECKSUM_FORCE_FAIL
@@ -48,10 +48,6 @@
 #ifdef ESP8266
   #define GBP_BUSY_PACKET_COUNT 3 // 68 Inquiry packets is generally approximately how long it takes for a real printer to print. This is not a real printer so can be shorter
 #endif  
-#ifdef ESP32
-  // Can be lower, but for now, use this value
-  #define GBP_BUSY_PACKET_COUNT 68 // 68 Inquiry packets is generally approximately how long it takes for a real printer to print. This is not a real printer so can be shorter
-#endif
 
 /******************************************************************************/
 
@@ -120,7 +116,13 @@ static struct
   uint16_t statusBuffer; ///< This is send on every packet in the dummy data region
 
   // Status Packet Sequencing (For faking the printer for more advance games)
-  int busyPacketCountdown;
+  #ifdef ESP8266
+    int busyPacketCountdown; 
+  #endif   
+  #ifdef ESP32
+    bool shouldPrint;
+    bool printISRTick;
+  #endif
   int untransPacketCountdown;
   int dataPacketCountdown;
 
@@ -294,7 +296,14 @@ bool gpb_serial_io_init(size_t buffSize, uint8_t *buffPtr)
   // reset status data
   gpb_pktIO.statusBuffer = 0x0000;
   gpb_pktIO.statusBuffer = GBP_DEVICE_ID << 8;
-  gpb_pktIO.busyPacketCountdown = 0;
+  #ifdef ESP8266
+    gpb_pktIO.busyPacketCountdown = 0; 
+  #endif
+  #ifdef ESP32
+    gpb_pktIO.shouldPrint = false;
+    gpb_pktIO.printISRTick = false;
+  #endif
+  
 
   // print data buffer
   gpb_cbuff_Init(&gpb_pktIO.dataBuffer, buffSize, buffPtr);
@@ -305,15 +314,33 @@ bool gpb_serial_io_init(size_t buffSize, uint8_t *buffPtr)
   return true;
 }
 
+void gbp_serial_io_print_done()
+{
+  gpb_pktIO.shouldPrint = false;
+}
+bool gbp_serial_io_should_print()
+{
+  return gpb_pktIO.shouldPrint;
+}
+/*
+void gbp_serial_io_print_isr_done()
+{
+  gpb_pktIO.printISRTick = false;
+}
+bool gbp_serial_io_print_isr()
+{
+  return gpb_pktIO.printISRTick;
+}
+*/
 
 /******************************************************************************/
 
 // Assumption: Only one gameboy printer connection required
 // Return: pin state of GBP_SIN
 #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
-bool gpb_serial_io_OnRising_ISR(const bool GBP_SOUT)
+  bool gpb_serial_io_OnRising_ISR(const bool GBP_SOUT)
 #else
-bool gpb_serial_io_OnChange_ISR(const bool GBP_SCLK, const bool GBP_SOUT)
+  bool gpb_serial_io_OnChange_ISR(const bool GBP_SCLK, const bool GBP_SOUT)
 #endif
 {
   // Based on SIO Timing Chart. Page 30 of GameBoy PROGRAMMING MANUAL Version 1.0:
@@ -566,12 +593,22 @@ bool gpb_serial_io_OnChange_ISR(const bool GBP_SCLK, const bool GBP_SOUT)
         // INIT --> DATA --> ENDDATA --> PRINT
         case GBP_COMMAND_INIT:
           gpb_pktIO.dataPacketCountdown = 6;
-          gpb_pktIO.untransPacketCountdown = 0;
-          gpb_pktIO.busyPacketCountdown = 0;
+          gpb_pktIO.untransPacketCountdown = 0; 
+          #ifdef ESP8266
+            gpb_pktIO.busyPacketCountdown = 0; 
+          #endif
+          #ifdef ESP32
+            gpb_pktIO.shouldPrint = false;          
+          #endif
           gpb_status_bit_update_print_buffer_full(gpb_pktIO.statusBuffer, false);
           break;
         case GBP_COMMAND_PRINT:
-          gpb_pktIO.busyPacketCountdown = GBP_BUSY_PACKET_COUNT;
+          #ifdef ESP8266
+            gpb_pktIO.busyPacketCountdown = GBP_BUSY_PACKET_COUNT;
+          #endif 
+          #ifdef ESP32
+            gpb_pktIO.shouldPrint = true;
+          #endif            
           break;
         case GBP_COMMAND_DATA:
           gpb_pktIO.untransPacketCountdown = 3;
@@ -592,21 +629,34 @@ bool gpb_serial_io_OnChange_ISR(const bool GBP_SCLK, const bool GBP_SOUT)
             if (gpb_pktIO.untransPacketCountdown == 0)
             {
               gpb_status_bit_update_unprocessed_data(gpb_pktIO.statusBuffer, false);
-              if (gpb_pktIO.busyPacketCountdown > 0)
+              #ifdef ESP8266
+                if (gpb_pktIO.busyPacketCountdown > 0)
+              #endif  
+              #ifdef ESP32
+                if (gpb_pktIO.shouldPrint)
+              #endif
               {             
                 gpb_status_bit_update_printer_busy(gpb_pktIO.statusBuffer, true);
                 gpb_status_bit_update_print_buffer_full(gpb_pktIO.statusBuffer, true);
               }
             }
           }
-          else if (gpb_pktIO.busyPacketCountdown > 0)
-          {
-            gpb_pktIO.busyPacketCountdown--;
-            if (gpb_pktIO.busyPacketCountdown == 0)
+          #ifdef ESP8266
+            else if (gpb_pktIO.busyPacketCountdown > 0)
             {
+              gpb_pktIO.busyPacketCountdown--;
+              if (gpb_pktIO.busyPacketCountdown == 0)
+              {
+                gpb_status_bit_update_printer_busy(gpb_pktIO.statusBuffer, false);
+              }
+            }
+          #endif  
+          #ifdef ESP32
+            else if (!gpb_pktIO.shouldPrint)
+            {              
               gpb_status_bit_update_printer_busy(gpb_pktIO.statusBuffer, false);
             }
-          }
+          #endif          
           break;
         default:
           break;
@@ -644,7 +694,12 @@ bool gpb_serial_io_OnChange_ISR(const bool GBP_SCLK, const bool GBP_SOUT)
         case GBP_COMMAND_BREAK:
           break;
         case GBP_COMMAND_INQUIRY:
-          if ((gpb_pktIO.untransPacketCountdown == 0) && (gpb_pktIO.busyPacketCountdown == 0))
+          #ifdef ESP8266
+            if ((gpb_pktIO.untransPacketCountdown == 0) && (gpb_pktIO.busyPacketCountdown == 0))
+          #endif  
+          #ifdef ESP32
+            if ((gpb_pktIO.untransPacketCountdown == 0) && (!gpb_pktIO.shouldPrint))
+          #endif
           {
             gpb_status_bit_update_print_buffer_full(gpb_pktIO.statusBuffer, false);
           }
