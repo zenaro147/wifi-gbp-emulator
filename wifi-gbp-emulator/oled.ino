@@ -91,9 +91,9 @@ void oled_setup() {
   bool bootMode;
 
   #ifdef SENSE_BOOT_MODE
-  bootMode = digitalRead(GB_5V_OUT);
+    bootMode = digitalRead(GB_5V_OUT);
   #else
-  bootMode = fs_alternateBootMode();
+    bootMode = fs_alternateBootMode();
   #endif
 
   if (bootMode == MODE_PRINT) {

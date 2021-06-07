@@ -116,7 +116,9 @@ void resetValues() {
       Serial.print("4");
       Serial.println(gbp_serial_io_should_print());  
     }
-    showPrinterStats();
+    #ifdef USE_OLED
+      showPrinterStats();
+    #endif
     gbp_serial_io_print_done();
     Serial.print("5");
     Serial.println(gbp_serial_io_should_print());  
@@ -147,7 +149,9 @@ void resetValues() {
   
   unsigned long perf = millis();
   char fileName[31];
-  oled_msg("Saving...");
+  #ifdef USE_OLED
+    oled_msg("Saving...");
+  #endif
   Serial.print("b");
   Serial.println(gbp_serial_io_should_print());  
   
@@ -286,8 +290,10 @@ inline void gbp_packet_capture_loop() {
         pktDataLength |= (gbp_serial_io_dataBuff_getByte_Peek(5)<<8)&0xFF00;
         chkHeader = gbp_serial_io_dataBuff_getByte_Peek(2);
 
-        if (chkHeader == 1) {
-          oled_msg("Receiving data...");
+        if (chkHeader == 1) {          
+          #ifdef USE_OLED
+            oled_msg("Receiving data...");
+          #endif
         }
 
         digitalWrite(LED_BLINK_PIN, HIGH);

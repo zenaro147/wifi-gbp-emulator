@@ -64,14 +64,18 @@ void getDumpsList() {
   String out;
   String dumpList;
   bool sep = false;
+
+  unsigned long total = 0;
+  unsigned long used = 0;
+  
   
   #ifdef ESP8266
     Dir dumpDir = FS.openDir("/d/");
     FSInfo fs_info;
     FS.info(fs_info);
-    unsigned long total = fs_info.totalBytes;
-    unsigned long used = fs_info.usedBytes;
-    unsigned long avail = total - used;
+    
+    total = fs_info.totalBytes;
+    used = fs_info.usedBytes;
     
     while(dumpDir.next()) {
       dumpcount++;
@@ -93,9 +97,8 @@ void getDumpsList() {
   #ifdef ESP32
     File dumpDir = FS.open("/d");
     //Random Values. Need find some way to get this values
-    unsigned long total = 1953282;
-    unsigned long used = 655863;
-    unsigned long avail = 1297419;
+    total = FS.totalBytes();
+    used = FS.usedBytes();
 
     File file = dumpDir.openNextFile();
     while(file){
@@ -116,7 +119,9 @@ void getDumpsList() {
       file = dumpDir.openNextFile();
     }  
   #endif 
-
+  
+  unsigned long avail = total - used;
+  
   char fs[100];
   sprintf(fs, "{\"total\":%d,\"used\":%d,\"available\":%d,\"maximages\":%d,\"dumpcount\":%d}", total, used, avail, MAX_IMAGES, dumpcount);
 
