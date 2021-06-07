@@ -129,13 +129,7 @@ String wifiSetConfig(String body) {
     }
   }
 
-  
-  #ifdef ESP8266
-     File confFileUpdated = FS.open("/conf.json", "w");
-  #endif
-  #ifdef ESP32
-    File confFileUpdated = FS.open("/conf.json", FILE_WRITE);
-  #endif
+  File confFileUpdated = FS.open("/conf.json", "w");
   serializeJson(conf, confFileUpdated);
   confFileUpdated.close();
   conf.clear();

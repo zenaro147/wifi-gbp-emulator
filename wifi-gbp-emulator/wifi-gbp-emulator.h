@@ -61,13 +61,8 @@
   #endif
 #endif
 #ifdef ESP32
-  #ifdef FSTYPE_LITTLEFS
-    #include <LITTLEFS.h>
-    #define FS LITTLEFS
-  #else
-    #include "SPIFFS.h"
-    #define FS SPIFFS
-  #endif
+  #include <LITTLEFS.h>
+  #define FS LITTLEFS
 #endif
 
 #define MODE_PRINT true

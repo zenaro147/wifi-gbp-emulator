@@ -8,17 +8,9 @@
 
 void createEmptyConfig() {
   Serial.println("Preparing empty conf.json. \nYou can configure WiFi-Settings via the web interface.");
-  #ifdef ESP8266
-    File confFileEmpty = FS.open("/conf.json", "w");
-    confFileEmpty.println("{}");
-    confFileEmpty.close();
-  #endif  
-  #ifdef ESP32
-    File confFileEmpty = FS.open("/conf.json", FILE_WRITE);
-    confFileEmpty.println("{}");
-    confFileEmpty.close();    
-  #endif
-
+  File confFileEmpty = FS.open("/conf.json", "w");
+  confFileEmpty.println("{}");
+  confFileEmpty.close();
 }
 
 void setupWifi() {
@@ -53,6 +45,7 @@ void setupWifi() {
             #ifdef ESP32
               if (!hasNetworkSettings){
                 WiFi.begin(ssid, password);
+                //wifiMulti.addAP(ssid, password);
               }
             #endif
             hasNetworkSettings = true;
@@ -120,6 +113,7 @@ void setupWifi() {
     #endif  
     #ifdef ESP32
        while (hasNetworkSettings && (WiFi.status() != WL_CONNECTED)) {
+       //while (hasNetworkSettings && (wifiMulti.run() != WL_CONNECTED)) {
         delay(250);
         digitalWrite(LED_BLINK_PIN, connectionBlink);
         connectionBlink = !connectionBlink;

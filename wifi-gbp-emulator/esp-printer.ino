@@ -80,17 +80,20 @@ unsigned int nextFreeFileIndex() {
       }
       file = root.openNextFile();
     }
-    return totFiles;
+    return totFiles + 1;
   #endif
 }
 
 
 
 void resetValues() {
+  Serial.print("1");
+  Serial.println(gbp_serial_io_should_print());  
   img_index = 0x00; 
   
   memset(image_data, 0x00, sizeof(image_data));
-
+  Serial.print("2");
+  Serial.println(gbp_serial_io_should_print());  
   #ifdef ESP8266
     /*Attach ISR Again*/
     #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
@@ -101,6 +104,8 @@ void resetValues() {
   #endif   
   #ifdef ESP32
     if (detachRun){
+      Serial.print("3");
+      Serial.println(gbp_serial_io_should_print());  
       /*Attach ISR Again*/
       #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
         attachInterrupt(digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
@@ -108,9 +113,13 @@ void resetValues() {
         attachInterrupt(digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
       #endif
       detachRun = false;
+      Serial.print("4");
+      Serial.println(gbp_serial_io_should_print());  
     }
     showPrinterStats();
     gbp_serial_io_print_done();
+    Serial.print("5");
+    Serial.println(gbp_serial_io_should_print());  
   #endif
   
   // Turn LED ON
@@ -127,6 +136,8 @@ void resetValues() {
   void storeData(void *pvParameters)
 #endif
 {
+  Serial.print("a");
+  Serial.println(gbp_serial_io_should_print());  
   #ifdef ESP8266
     detachInterrupt(digitalPinToInterrupt(GB_SCLK));
   #endif
@@ -137,16 +148,16 @@ void resetValues() {
   unsigned long perf = millis();
   char fileName[31];
   oled_msg("Saving...");
+  Serial.print("b");
+  Serial.println(gbp_serial_io_should_print());  
   
   sprintf(fileName, "/d/%05d.txt", freeFileIndex);
   digitalWrite(LED_BLINK_PIN, LOW);
 
-  #ifdef ESP8266
-    File file = FS.open(fileName, "w");
-  #endif
-  #ifdef ESP32
-    File file = FS.open(fileName, FILE_WRITE);
-  #endif
+  File file = FS.open(fileName, "w");
+
+  Serial.print("c");
+  Serial.println(gbp_serial_io_should_print());  
 
   if (!file) {
     Serial.println("file creation failed");
@@ -159,31 +170,34 @@ void resetValues() {
     file.write(image_data2, img_index);
   #endif 
   file.close();
+  Serial.print("d");
+  Serial.println(gbp_serial_io_should_print());  
 
   perf = millis() - perf;
   Serial.printf("File /d/%05d.txt written in %lums\n", freeFileIndex, perf);
 
   freeFileIndex++;
 
-  #ifdef ESP8266
-    // ToDo: Handle percentages
-    int percUsed = fs_info();
-    if (percUsed > 5) {
-      resetValues();
-    } else {
-      Serial.println("no more space on printer\nrebooting...");
-      ESP.restart();
-    }  
-  #endif
+  Serial.print("e");
+  Serial.println(gbp_serial_io_should_print());  
+
+  // ToDo: Handle percentages
+  int percUsed = fs_info();
+  if (percUsed > 5) {
+    Serial.print("f");
+    Serial.println(gbp_serial_io_should_print());  
+    resetValues();
+    Serial.print("g"); 
+    Serial.println(gbp_serial_io_should_print());
+  } else {
+    Serial.println("no more space on printer\nrebooting...");
+    ESP.restart();
+  }  
+  
   #ifdef ESP32
-    if (freeFileIndex <= MAX_IMAGES) {
-      resetValues();      
-    } else {
-      Serial.println("no more space on printer\nrebooting...");
-      ESP.restart();
-    }
     vTaskDelete( NULL );
-  #endif 
+  #endif
+   
 }
 
 
@@ -191,17 +205,13 @@ void resetValues() {
 // Blink if printer is full.
 void full() {
   Serial.println("no more space on printer");
-
+  digitalWrite(LED_BLINK_PIN, HIGH);
   #ifdef USE_OLED
-    oled_msg((String)"Printer is full :-(");
+    oled_msg((String)"Printer is full :-(",(String)"Rebooting...");
   #endif
 
-  while(true) {
-    digitalWrite(LED_BLINK_PIN, LOW);
-    delay(1000);
-    digitalWrite(LED_BLINK_PIN, HIGH);
-    delay(500);
-  }
+  delay(3000);
+  ESP.restart();
 }
 
 
@@ -217,12 +227,12 @@ void espprinter_setup() {
 
   freeFileIndex = nextFreeFileIndex();
 
-  if (freeFileIndex <= MAX_IMAGES) {
-    Serial.printf("Next file: /d/%05d.txt\n", freeFileIndex);
-  } else {
-    full();
-  }
-
+  int percUsed = fs_info();
+  if (percUsed < 5) {
+    Serial.println("no more space on printer\nrebooting...");
+    ESP.restart();
+  } 
+  
   /* Setup */
   gpb_serial_io_init(sizeof(gbp_serialIO_raw_buffer), gbp_serialIO_raw_buffer);
 
@@ -238,23 +248,16 @@ void espprinter_setup() {
 #ifdef USE_OLED
   void showPrinterStats() {
     char printed[20];
-    #ifdef ESP8266
-      int percUsed = fs_info();
-      sprintf(printed, "%3d files", freeFileIndex - 1);
-      oled_msg(((String)percUsed)+((char)'%')+" remaining",printed);
-    #endif
-    #ifdef ESP32
-      char remain[20];
-      sprintf(printed, "%3d printed", freeFileIndex - 1);
-      sprintf(remain, "%3d remaining", MAX_IMAGES + 1 - freeFileIndex);
-      oled_msg(
-        printed,
-        remain
-      );
-    #endif
+    int percUsed = fs_info();
+    
+    sprintf(printed, "%3d files", freeFileIndex - 1);
+    oled_msg(((String)percUsed)+((char)'%')+" remaining",printed);
+    
     oled_drawLogo();
   }
 #endif
+
+
 
 inline void gbp_packet_capture_loop() {
   /* tiles received */
@@ -313,6 +316,8 @@ inline void gbp_packet_capture_loop() {
             #endif
             #ifdef ESP32
               if (img_index > 35200) {
+                Serial.print("gg");
+                Serial.println(gbp_serial_io_should_print());
                 xTaskCreatePinnedToCore(
                                         storeData,            // Task function. 
                                         "storeData",          // name of task. 
@@ -322,14 +327,24 @@ inline void gbp_packet_capture_loop() {
                                         &TaskWrite,           // Task handle to keep track of created task 
                                         0);                   // pin task to core 0 
               }else{
+                Serial.print("ee");
+                Serial.println(gbp_serial_io_should_print());
                 gbp_serial_io_print_done();
+                Serial.print("ff");
+                Serial.println(gbp_serial_io_should_print());
               }
             #endif
             chkHeader = 99;
           }
+          Serial.print("bb");
+          Serial.println(gbp_serial_io_should_print());
           gbp_serial_io_print_done();
+          Serial.print("cc");
+          Serial.println(gbp_serial_io_should_print());          
           cmdPRNT = "";
         }
+        Serial.print("aa");
+        Serial.println(gbp_serial_io_should_print());
         pktByteIndex = 0;
         pktTotalCount++;
       } else {

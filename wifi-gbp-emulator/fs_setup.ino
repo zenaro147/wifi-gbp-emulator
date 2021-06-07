@@ -29,26 +29,33 @@ void fs_setup() {
 }
 
 int fs_info() {
+   unsigned int totalBytes=0;
+   unsigned int usedBytes=0;
   #ifdef ESP8266
     FSInfo fs_info;
     FS.info(fs_info);
-    Serial.print("FILESYSTEM total: ");
-    Serial.print(fs_info.totalBytes);
-    Serial.print(" | used: ");
-    Serial.println(fs_info.usedBytes);
-  
-    return (int)(
-      (((float)fs_info.totalBytes - (float)fs_info.usedBytes) / (float)fs_info.totalBytes) * 100.0
-    );
+    totalBytes = fs_info.totalBytes;
+    usedBytes = fs_info.usedBytes;  
   #endif  
   #ifdef ESP32
-    return(1);
-  #endif
+    totalBytes = FS.totalBytes();
+    usedBytes = FS.usedBytes();  
+  #endif  
+  
+  Serial.print("FILESYSTEM total: ");
+  Serial.print(totalBytes);
+  Serial.print(" | used: ");
+  Serial.println(usedBytes);
+  
+    return (int)(
+      (((float)totalBytes - (float)usedBytes) / (float)totalBytes) * 100.0
+    );
 }
 
 #ifndef SENSE_BOOT_MODE
 bool fs_alternateBootMode() {
   String bootmode = "bootmode.txt";
+  
   #ifdef ESP8266
     if (FS.exists(bootmode)) {
       FS.remove(bootmode);
@@ -73,7 +80,7 @@ bool fs_alternateBootMode() {
     file.close();
     FS.remove(path);
 
-    file = FS.open(path, FILE_WRITE);
+    file = FS.open(path, "w");
     if (bootmode == "SERV"){
       file.print("PRNT");
       file.close();    
