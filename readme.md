@@ -6,7 +6,7 @@ You can use the same code as well on a ESP8266, if you use it, I recommend to fo
 
 The required (recommended) [gameboy printer web interface can be found on github as well](https://github.com/HerrZatacke/gb-printer-web/)  
 
-This (for now) is a Prototype branch to use the original code into the ESP32 (and maybe get some advantages from his hardware, like the dual core)
+This (for now) is a Prototype branch to use the original code into the ESP32 (and try get some advantages from his hardware, like the dual core)
 
 ## Setup
 For uploading the Filesystem to the ESP you require the [Arduino ESP32 filesystem uploader](https://github.com/lorol/arduino-esp32fs-plugin). Follow the installation instructions on the repository.
@@ -88,7 +88,7 @@ Gameboy Original/Color Link Cable Pinout
 
 | Link Cable |  ESP32  |
 |------------|---------|
-| Pin 1      | //      | (for now)
+| Pin 1      | G5      | 
 | Pin 2      | G19     |
 | Pin 3      | G23     |
 | Pin 5      | G18     |
