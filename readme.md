@@ -115,4 +115,3 @@ The display will show the current wifi-config while in server mode, as well as t
 ## Known Bugs
 ESP32 Only:
 * WifiMulti doesn't work properly. Only Access Point works or using a single Wifi Network;
-* Some OLED display glitches;
