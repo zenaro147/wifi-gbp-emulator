@@ -117,6 +117,7 @@ You can add a [tiny oled display like this](https://www.amazon.de/gp/product/B07
 To use it, you need to uncomment `#define USE_OLED` and the following lines   
 The display will show the current wifi-config while in server mode, as well as the number of printed images  when in printer mode  
 **Please note the image count in printer mode only regularly updates while idle, and not while printing a batch of images**
+**NOTE: Does not connect the screen with a cable that exceeds 20 cm **
 
 ## Demo Video
 ~~An earlier version of this code did stream the received image-data to a browser via websockets. This is shown in [this older video](https://www.youtube.com/watch?v=HHPHkeio85U).~~    
