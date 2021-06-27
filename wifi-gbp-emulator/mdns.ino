@@ -3,21 +3,12 @@ void mdns_setup() {
   String protocol = F("http://");
   String ip = "";
   String local = F(".local");
-
   
-  #ifdef ESP8266
-    if (!MDNS.begin(mdnsName)) {
-      Serial.println("Error setting up MDNS responder!");
-    }
-  #endif  
-  #ifdef ESP32
-    const char * mdnsNamec = mdnsName.c_str();
-    if (!MDNS.begin(mdnsNamec)) {
-      Serial.println("Error setting up MDNS responder!");
-    }
-  #endif
+  const char * mdnsNamec = mdnsName.c_str();
+  if (!MDNS.begin(mdnsNamec)) {
+    Serial.println("Error setting up MDNS responder!");
+  }
   
-
   MDNS.addService("http", "tcp", 80);
   WiFi.hostname(mdnsName + local);
 
@@ -39,7 +30,5 @@ void mdns_setup() {
 }
 
 void mdns_loop() {
-  #ifdef ESP8266
-    MDNS.update();
-  #endif
+  //MDNS.update();
 }

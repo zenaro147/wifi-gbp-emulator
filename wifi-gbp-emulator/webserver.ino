@@ -1,10 +1,5 @@
 
-#ifdef ESP8266
-  ESP8266WebServer server(80);
-#endif
-#ifdef ESP32
-  WebServer server(80);
-#endif
+WebServer server(80);
   
 #define DUMP_CHUNK_SIZE 90
 
@@ -20,31 +15,17 @@ void send404() {
 // delete all stored dumps
 void clearDumps() {
   unsigned int dumpcount = 0;
-  #ifdef ESP8266
-    Dir dumpDir = FS.openDir("/d/");
-  
-    while(dumpDir.next()) {
-      #ifdef FSTYPE_LITTLEFS
-        FS.remove("/d/" + dumpDir.fileName());
-      #else
-        FS.remove(dumpDir.fileName());
-      #endif
-      dumpcount++;
-    }
-  #endif  
-  #ifdef ESP32
-    File dumpDir = FS.open("/d");    
-    File file = dumpDir.openNextFile();
-  
-    char filename[12]; 
-  
-    while(file) {
-      sprintf(filename, "/d/%s", file.name());
-      dumpcount++;    
-      file = dumpDir.openNextFile();
-      FS.remove(filename);
-    }
-  #endif
+  File dumpDir = FS.open("/d");    
+  File file = dumpDir.openNextFile();
+
+  char filename[12]; 
+
+  while(file) {
+    sprintf(filename, "/d/%s", file.name());
+    dumpcount++;    
+    file = dumpDir.openNextFile();
+    FS.remove(filename);
+  }
   
   char out[24];
   sprintf(out, "{\"deleted\":%d}", dumpcount);
@@ -68,57 +49,25 @@ void getDumpsList() {
   unsigned long total = 0;
   unsigned long used = 0;
   
-  
-  #ifdef ESP8266
-    Dir dumpDir = FS.openDir("/d/");
-    FSInfo fs_info;
-    FS.info(fs_info);
-    
-    total = fs_info.totalBytes;
-    used = fs_info.usedBytes;
-    
-    while(dumpDir.next()) {
-      dumpcount++;
-      if (sep) {
-        dumpList += ",";
-      } else {
-        sep = true;
-      }
-      dumpList += "\"";
-      #ifdef FSTYPE_LITTLEFS
-        dumpList += "/dumps/";
-      #else
-        dumpList += "/dumps" ;
-      #endif
-      dumpList += dumpDir.fileName();
-      dumpList += "\"";
-    }
-  #endif  
-  #ifdef ESP32
-    File dumpDir = FS.open("/d");
-    //Random Values. Need find some way to get this values
-    total = FS.totalBytes();
-    used = FS.usedBytes();
+  File dumpDir = FS.open("/d");
+  //Random Values. Need find some way to get this values
+  total = FS.totalBytes();
+  used = FS.usedBytes();
 
-    File file = dumpDir.openNextFile();
-    while(file){
-      dumpcount++;
-      if (sep) {
-        dumpList += ",";
-      } else {
-        sep = true;
-      }    
-      dumpList += "\"";
-      #ifdef FSTYPE_LITTLEFS
-        dumpList += "/dumps/";
-      #else
-        dumpList += "/dumps/d/" ;
-      #endif
-      dumpList += file.name();
-      dumpList += "\"";
-      file = dumpDir.openNextFile();
-    }  
-  #endif 
+  File file = dumpDir.openNextFile();
+  while(file){
+    dumpcount++;
+    if (sep) {
+      dumpList += ",";
+    } else {
+      sep = true;
+    }    
+    dumpList += "\"";
+    dumpList += "/dumps/";
+    dumpList += file.name();
+    dumpList += "\"";
+    file = dumpDir.openNextFile();
+  }  
   
   unsigned long avail = total - used;
   
@@ -184,81 +133,46 @@ void setConfig() {
 
 // stream binary dump data to web-client
 void handleDump() {
-  String path = "/d/" + server.pathArg(0);
-  #ifdef ESP8266
-    if(FS.exists(path)) {
-      File file = FS.open(path, "r");
-      defaultHeaders();
-  
-      server.setContentLength(file.available() * 3);
-      server.send(200, "text/plain");
-  
-      Serial.println(file.available());
-      Serial.println(file.available() * 3);
-  
-      const char nibbleToCharLUT[] = "0123456789ABCDEF";
-  
-      char converted[DUMP_CHUNK_SIZE];
-      uint8_t index = 0;
-  
-      while (file.available()) {
-        char c = file.read();
-  
-        converted[index] = nibbleToCharLUT[(c>>4)&0xF];
-        converted[index + 1] = nibbleToCharLUT[(c>>0)&0xF];
-        converted[index + 2] = ' ';
-        index += 3;
-  
-        if (index >= DUMP_CHUNK_SIZE || file.available() == 0) {
-          Serial.println(index + 3);
-          server.sendContent(converted, index);
-          index = 0;
-        }
-      }
-      file.close();
-      return;
-    }
-  #endif  
-  #ifdef ESP32
-    File file = FS.open(path); //check what print here
-    Serial.println(path);
-    if(!file || file.isDirectory()){
-      Serial.println("failed to open file for reading");
-      return;
-    }
+  String path = "/d/" + server.pathArg(0); 
+
+  File file = FS.open(path); //check what print here
+  Serial.println(path);
+  if(!file || file.isDirectory()){
+    Serial.println("failed to open file for reading");
+    return;
+  }
     
-    if(file) {
-      defaultHeaders();
-  
-      server.setContentLength(file.available() * 3);
-      server.send(200, "text/plain");
-  
-      Serial.println(file.available());
-      Serial.println(file.available() * 3);
-  
-      const char nibbleToCharLUT[] = "0123456789ABCDEF";
-  
-      char converted[DUMP_CHUNK_SIZE];
-      uint8_t index = 0;
-  
-      while (file.available()) {
-        char c = file.read();
-  
-        converted[index] = nibbleToCharLUT[(c>>4)&0xF];
-        converted[index + 1] = nibbleToCharLUT[(c>>0)&0xF];
-        converted[index + 2] = ' ';
-        index += 3;
-  
-        if (index >= DUMP_CHUNK_SIZE || file.available() == 0) {
-          Serial.println(index + 3);
-          server.sendContent(converted, index);
-          index = 0;
-        }
+  if(file) {
+    defaultHeaders();
+
+    server.setContentLength(file.available() * 3);
+    server.send(200, "text/plain");
+
+    Serial.println(file.available());
+    Serial.println(file.available() * 3);
+
+    const char nibbleToCharLUT[] = "0123456789ABCDEF";
+
+    char converted[DUMP_CHUNK_SIZE];
+    uint8_t index = 0;
+
+    while (file.available()) {
+      char c = file.read();
+
+      converted[index] = nibbleToCharLUT[(c>>4)&0xF];
+      converted[index + 1] = nibbleToCharLUT[(c>>0)&0xF];
+      converted[index + 2] = ' ';
+      index += 3;
+
+      if (index >= DUMP_CHUNK_SIZE || file.available() == 0) {
+        Serial.println(index + 3);
+        server.sendContent(converted, index);
+        index = 0;
       }
-      file.close();
-      return;
     }
-  #endif
+    file.close();
+    return;
+  }
   
   send404();
 }
@@ -272,44 +186,25 @@ bool handleFileRead(String path) {
   }
 
   String pathWithGz = path + ".gz";
-  #ifdef ESP8266
-    if(FS.exists(pathWithGz) || FS.exists(path)) {
-      String contentType = getContentType(path);
+  File file1 = FS.open(path);
+  File file2 = FS.open(pathWithGz);
   
-      if(FS.exists(pathWithGz)) {
-        path += ".gz";
-      }
-  
-      File file = FS.open(path, "r");
-      defaultHeaders();
-      size_t sent = server.streamFile(file, contentType);
-      file.close();
-      return true;
-    }
-  #endif  
-  #ifdef ESP32
-    //
-    File file1 = FS.open(path);
-    File file2 = FS.open(pathWithGz);
-    
-    if(file1 || file2) {
-      String contentType = getContentType(path);
-  
-      if(file2) {
-        path += ".gz";
-      }
-      
-      file1.close();
-      file2.close();  
-      
-      File file = FS.open(path);
-      defaultHeaders();
-      size_t sent = server.streamFile(file, contentType);
-      file.close();
-      return true;
-    }
-  #endif
+  if(file1 || file2) {
+    String contentType = getContentType(path);
 
+    if(file2) {
+      path += ".gz";
+    }
+    
+    file1.close();
+    file2.close();  
+    
+    File file = FS.open(path);
+    defaultHeaders();
+    size_t sent = server.streamFile(file, contentType);
+    file.close();
+    return true;
+  }
 
   Serial.print(path);
   Serial.println(" - Not Found");

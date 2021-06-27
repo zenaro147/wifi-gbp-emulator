@@ -5,12 +5,7 @@ String JsonErrorResponse (String msg) {
 
 String wifiGetConfig() {
   StaticJsonDocument<1023> conf;  
-  #ifdef ESP8266
-     File confFile = FS.open("/conf.json", "r");
-  #endif
-  #ifdef ESP32
-    File confFile = FS.open("/conf.json");
-  #endif
+  File confFile = FS.open("/conf.json");
 
   if (confFile) {
     DeserializationError error = deserializeJson(conf, confFile.readString());
@@ -81,12 +76,7 @@ String wifiSetConfig(String body) {
     return JsonErrorResponse("cannot parse request body");
   }
 
-  #ifdef ESP8266
-     File confFile = FS.open("/conf.json", "r");
-  #endif
-  #ifdef ESP32
-    File confFile = FS.open("/conf.json");
-  #endif
+  File confFile = FS.open("/conf.json");
 
   if (confFile) {
     deserializeJson(conf, confFile.readString()); // no need to check for an error - file will be re-written anyways

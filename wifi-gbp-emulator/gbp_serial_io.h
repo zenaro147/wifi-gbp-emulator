@@ -51,9 +51,8 @@ uint16_t gbp_serial_io_dataBuff_waterline(bool resetWaterline);
 uint16_t gbp_serial_io_dataBuff_max(void);
 
 void gbp_serial_io_print_done();
+void gbp_serial_io_print_set();
 bool gbp_serial_io_should_print();
-void gbp_serial_io_print_isr_done();
-bool gbp_serial_io_print_isr();
 
 /******************************************************************************/
 #endif

@@ -1,20 +1,11 @@
 #include "config.h"
 #include <ArduinoJson.h>
 
-#ifdef ESP8266
-  #include <FS.h>
-  #include <ESP8266WiFi.h>
-  #include <ESP8266WiFiMulti.h>
-  #include <ESP8266WebServer.h>
-  #include <ESP8266mDNS.h>
-#endif
-#ifdef ESP32
-  #include "FS.h"
-  #include <WiFi.h>
-  #include <WiFiMulti.h>
-  #include <WebServer.h>
-  #include <ESPmDNS.h>
-#endif
+#include "FS.h"
+#include <WiFi.h>
+#include <WiFiMulti.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
 
 #include <uri/UriBraces.h>
 
@@ -52,18 +43,9 @@
 #define GB_SCLK 14
 #endif
 
-#ifdef ESP8266
-  #ifdef FSTYPE_LITTLEFS
-    #include <LittleFS.h>
-    #define FS LittleFS
-  #else
-    #define FS SPIFFS
-  #endif
-#endif
-#ifdef ESP32
-  #include <LITTLEFS.h>
-  #define FS LITTLEFS
-#endif
+
+#include <LITTLEFS.h>
+#define FS LITTLEFS
 
 #define MODE_PRINT true
 #define MODE_SERVE false
