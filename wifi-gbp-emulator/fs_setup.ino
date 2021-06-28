@@ -27,28 +27,17 @@ int fs_info() {
 #ifndef SENSE_BOOT_MODE
 bool fs_alternateBootMode() {
   String bootmode = "bootmode.txt";
-  
   char path[14];
-  sprintf(path, "/%d", bootmode);
-  File file = FS.open(path);
-  bootmode="";
-  if(file){
-    while(file.available()){
-      bootmode = bootmode + ((char)(file.read()));
-    }
-  }
-  file.close();
-  FS.remove(path);
-
-  file = FS.open(path, "w");
-  if (bootmode == "SERV"){
-    file.print("PRNT");
-    file.close();    
+  
+  sprintf(path, "/%s", bootmode);
+  
+  if(SD.remove(path)){
     return false;
-  }else{
-    file.print("SERV");
-    file.close();    
+  } else {
+    File file = SD.open(path,"w");
+    file.print("BOOT");
+    file.close();
     return true;
-  }
+  } 
 }
 #endif
