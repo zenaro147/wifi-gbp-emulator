@@ -47,12 +47,13 @@ void getDumpsList() {
   bool sep = false;
 
   unsigned int total = 0;
+  total = FSYS.totalBytes();
   unsigned int used = 0;
+  used = FSYS.usedBytes();  
+  unsigned int avail = total - used;
   
   File dumpDir = FSYS.open("/d");
-  //Random Values. Need find some way to get this values
-  total = FSYS.totalBytes();
-  used = FSYS.usedBytes();
+
 
   File file = dumpDir.openNextFile();
   while(file){
@@ -69,10 +70,9 @@ void getDumpsList() {
     file = dumpDir.openNextFile();
   }  
   
-  unsigned long avail = total - used;
   
   char fs[100];
-  sprintf(fs, "{\"total\":%d,\"used\":%d,\"available\":%d,\"maximages\":%d,\"dumpcount\":%d}", total, used, avail, MAX_IMAGES, dumpcount);
+  sprintf(fs, "{\"total\":%u,\"used\":%u,\"available\":%u,\"maximages\":%d,\"dumpcount\":%u}", total, used, avail, MAX_IMAGES, dumpcount);
 
   defaultHeaders();
   server.send(200, "application/json", "{\"fs\":" + String(fs) + ",\"dumps\":[" + dumpList + "]}");

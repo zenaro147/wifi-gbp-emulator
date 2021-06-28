@@ -39,6 +39,9 @@ void setup() {
 
   Serial.println((String)"\n\nv" + VERSION);
   if (bootMode == MODE_PRINT) {
+    #ifdef USE_OLED
+      oled_msg((String)" v" + VERSION + (String)"\n Booting printer...");
+    #endif
     Serial.println("-----------------------");
     Serial.println("Booting in printer mode");
     Serial.println("-----------------------\n");
@@ -48,6 +51,9 @@ void setup() {
       showPrinterStats();
     #endif
   } else {
+    #ifdef USE_OLED
+      oled_msg((String)" v" + VERSION + (String)"\n Booting server...");
+    #endif    
     Serial.println("-----------------------");
     Serial.println("Booting in server mode");
     Serial.println("-----------------------\n");
