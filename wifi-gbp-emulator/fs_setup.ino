@@ -38,8 +38,8 @@ void fs_setup() {
 }
 
 int fs_info() {
-  unsigned int totalBytes=0;
-  unsigned int usedBytes=0;
+  uint64_t totalBytes=0;
+  uint64_t usedBytes=0;
   totalBytes = FSYS.totalBytes();
   usedBytes = FSYS.usedBytes();   
   

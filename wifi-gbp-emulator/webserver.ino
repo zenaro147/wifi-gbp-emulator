@@ -46,11 +46,11 @@ void getDumpsList() {
   String dumpList;
   bool sep = false;
 
-  unsigned int total = 0;
+  uint64_t total = 0;
   total = FSYS.totalBytes();
-  unsigned int used = 0;
+  uint64_t used = 0;
   used = FSYS.usedBytes();  
-  unsigned int avail = total - used;
+  uint64_t avail = total - used;
   
   File dumpDir = FSYS.open("/d");
 
@@ -72,7 +72,7 @@ void getDumpsList() {
   
   
   char fs[100];
-  sprintf(fs, "{\"total\":%u,\"used\":%u,\"available\":%u,\"maximages\":%d,\"dumpcount\":%u}", total, used, avail, MAX_IMAGES, dumpcount);
+  sprintf(fs, "{\"total\":%llu,\"used\":%llu,\"available\":%llu,\"maximages\":%d,\"dumpcount\":%d}", total, used, avail, MAX_IMAGES, dumpcount);
 
   defaultHeaders();
   server.send(200, "application/json", "{\"fs\":" + String(fs) + ",\"dumps\":[" + dumpList + "]}");
