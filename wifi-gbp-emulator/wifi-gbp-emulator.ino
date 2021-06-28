@@ -1,6 +1,10 @@
 #include "wifi-gbp-emulator.h"
-
 #define VERSION "0.3.5-custom"
+
+#ifdef FSTYPE_SDCARD
+  SPIClass spiSD(HSPI);
+#endif
+
 
 // Variables used across multiple files, so they need to be defined here
 String mdnsName = DEFAULT_MDNS_NAME;
@@ -32,17 +36,6 @@ void setup() {
   #else
     bootMode = fs_alternateBootMode();
   #endif
-
-
-  // ToDo: boot into server mode if printer is full?
-  // freeFileIndex = nextFreeFileIndex();
-  //
-  // if (freeFileIndex <= MAX_IMAGES) {
-  //   Serial.printf("Next file: /d/%05d.txt\n", freeFileIndex);
-  // } else {
-  //   full();
-  // }
-
 
   Serial.println((String)"\n\nv" + VERSION);
   if (bootMode == MODE_PRINT) {

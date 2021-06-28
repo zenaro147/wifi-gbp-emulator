@@ -10,7 +10,7 @@ unsigned int freeFileIndex = 0;
 uint8_t cmdPRNT=0x00;
 uint8_t chkHeader=99;
 
-byte image_data[86000] = {}; //moreless 14 photos (82.236) (max:86360)
+byte image_data[83000] = {}; //moreless 14 photos (82.236) (max:86360)
 uint32_t img_index=0x00;
 
 // Dev Note: Gamboy camera sends data payload of 640 bytes usually
@@ -58,7 +58,7 @@ void ICACHE_RAM_ATTR serialClock_ISR(void)
 
 unsigned int nextFreeFileIndex() {
   int totFiles = 0;
-  File root = FS.open("/d");
+  File root = FSYS.open("/d");
   file = root.openNextFile();
   while(file){
     if(file){
@@ -128,7 +128,7 @@ void storeData(void *pvParameters)
   sprintf(fileName, "/d/%05d.txt", freeFileIndex);
   digitalWrite(LED_BLINK_PIN, LOW);
 
-  file = FS.open(fileName, "w");
+  file = FSYS.open(fileName, "w");
   if (!file) {
     Serial.println("file creation failed");
   }

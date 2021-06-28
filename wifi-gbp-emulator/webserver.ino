@@ -15,7 +15,7 @@ void send404() {
 // delete all stored dumps
 void clearDumps() {
   unsigned int dumpcount = 0;
-  File dumpDir = FS.open("/d");    
+  File dumpDir = FSYS.open("/d");    
   File file = dumpDir.openNextFile();
 
   char filename[12]; 
@@ -24,7 +24,7 @@ void clearDumps() {
     sprintf(filename, "/d/%s", file.name());
     dumpcount++;    
     file = dumpDir.openNextFile();
-    FS.remove(filename);
+    FSYS.remove(filename);
   }
   
   char out[24];
@@ -46,13 +46,13 @@ void getDumpsList() {
   String dumpList;
   bool sep = false;
 
-  unsigned long total = 0;
-  unsigned long used = 0;
+  unsigned int total = 0;
+  unsigned int used = 0;
   
-  File dumpDir = FS.open("/d");
+  File dumpDir = FSYS.open("/d");
   //Random Values. Need find some way to get this values
-  total = FS.totalBytes();
-  used = FS.usedBytes();
+  total = FSYS.totalBytes();
+  used = FSYS.usedBytes();
 
   File file = dumpDir.openNextFile();
   while(file){
@@ -84,20 +84,12 @@ void getEnv() {
   sprintf(out, "{\"version\":\"%s\",\"maximages\":%d,\"env\":\"%s\",\"fstype\":\"%s\",\"bootmode\":\"%s\",\"oled\":%s}",
     VERSION,
     MAX_IMAGES,
-#ifdef ESP8266
+#if defined(ESP8266) || defined(ESP32)
     "esp8266",
 #else
-  #ifdef ESP32
-    "esp8266",
-  #else
-    "unknown",
-  #endif
+  "unknown",
 #endif
-#ifdef FSTYPE_LITTLEFS
-    "littlefs",
-#else
-    "spiffs",
-#endif
+"littlefs",
 #ifdef SENSE_BOOT_MODE
     "5v-sense",
 #else
@@ -135,7 +127,7 @@ void setConfig() {
 void handleDump() {
   String path = "/d/" + server.pathArg(0); 
 
-  File file = FS.open(path); //check what print here
+  File file = FSYS.open(path); //check what print here
   Serial.println(path);
   if(!file || file.isDirectory()){
     Serial.println("failed to open file for reading");
@@ -186,8 +178,8 @@ bool handleFileRead(String path) {
   }
 
   String pathWithGz = path + ".gz";
-  File file1 = FS.open(path);
-  File file2 = FS.open(pathWithGz);
+  File file1 = FSYS.open(path);
+  File file2 = FSYS.open(pathWithGz);
   
   if(file1 || file2) {
     String contentType = getContentType(path);
@@ -199,7 +191,7 @@ bool handleFileRead(String path) {
     file1.close();
     file2.close();  
     
-    File file = FS.open(path);
+    File file = FSYS.open(path);
     defaultHeaders();
     size_t sent = server.streamFile(file, contentType);
     file.close();
@@ -226,11 +218,7 @@ void webserver_setup() {
   server.on("/wificonfig/set", setConfig);
   server.on("/env.json", getEnv);
 
-  #ifdef FSTYPE_LITTLEFS
-    server.on(UriBraces("/dumps/{}"), handleDump);
-  #else
-    server.on(UriBraces("/dumps/d/{}"), handleDump);
-  #endif
+  server.on(UriBraces("/dumps/{}"), handleDump);
 
   server.onNotFound([]() {
     if (!handleFileRead(server.uri())) {

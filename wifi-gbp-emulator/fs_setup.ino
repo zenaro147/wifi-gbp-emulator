@@ -1,18 +1,47 @@
 
 void fs_setup() {
-  FS.begin();
-  if (!FS.begin(true)) {
+  #ifdef FSTYPE_SDCARD
+    spiSD.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS); //SCK,MISO,MOSI,SS //HSPI1
+    FSYS.begin(SD_CS, spiSD);
+  #else
+    FSYS.begin();
+  #endif 
+  if (!FSYS.begin(true)) {
     Serial.println("LITTLEFS Mount Failed");
     return;
   }
+
+  #ifdef FSTYPE_SDCARD
+    uint8_t cardType = SD.cardType();
+    if(cardType == CARD_NONE){
+        Serial.println("No SD card attached");
+        ESP.restart();
+        return;
+    }
+  
+    Serial.print("SD Card Type: ");
+    if(cardType == CARD_MMC){
+        Serial.println("MMC");
+    } else if(cardType == CARD_SD){
+        Serial.println("SDSC");
+    } else if(cardType == CARD_SDHC){
+        Serial.println("SDHC");
+    } else {
+        Serial.println("UNKNOWN");
+    }
+  
+    uint64_t cardSize = SD.cardSize() / (1024 * 1024);
+    Serial.printf("SD Card Size: %lluMB\n", cardSize);
+  #endif
+
   Serial.println(" done");
 }
 
 int fs_info() {
   unsigned int totalBytes=0;
   unsigned int usedBytes=0;
-  totalBytes = FS.totalBytes();
-  usedBytes = FS.usedBytes();   
+  totalBytes = FSYS.totalBytes();
+  usedBytes = FSYS.usedBytes();   
   
   Serial.print("FILESYSTEM total: ");
   Serial.print(totalBytes);

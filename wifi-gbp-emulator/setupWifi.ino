@@ -1,16 +1,16 @@
 
-  WiFiMulti wifiMulti;
+  //WiFiMulti wifiMulti;
 
 void createEmptyConfig() {
   Serial.println("Preparing empty conf.json. \nYou can configure WiFi-Settings via the web interface.");
-  File confFileEmpty = FS.open("/conf.json", "w");
+  File confFileEmpty = FSYS.open("/conf.json", "w");
   confFileEmpty.println("{}");
   confFileEmpty.close();
 }
 
 void setupWifi() {
   StaticJsonDocument<1023> conf;  
-  File confFile = FS.open("/conf.json");
+  File confFile = FSYS.open("/conf.json");
 
   if (confFile) {
     DeserializationError error = deserializeJson(conf, confFile.readString());
@@ -29,11 +29,8 @@ void setupWifi() {
           const char *ssid = networkSetting["ssid"].as<const char*>();
           const char *password = networkSetting["psk"].as<const char*>();
           if (ssid != "null" && ssid != "" && password != "") {
-            wifiMulti.addAP(ssid, password);
-            if (!hasNetworkSettings){
-              WiFi.begin(ssid, password);
-              //wifiMulti.addAP(ssid, password);
-            }
+            //wifiMulti.addAP(ssid, password);
+            WiFi.begin(ssid, password);
             hasNetworkSettings = true;
           }
         }

@@ -3,7 +3,7 @@
 
 #include "FS.h"
 #include <WiFi.h>
-#include <WiFiMulti.h>
+//#include <WiFiMulti.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
 
@@ -30,22 +30,42 @@
 #ifndef LED_BLINK_PIN
 #define LED_BLINK_PIN 2
 #endif
+
 #ifndef GB_5V_OUT
 #define GB_5V_OUT 5
 #endif
 #ifndef GB_MISO
-#define GB_MISO 12
+#define GB_MISO 19
 #endif
 #ifndef GB_MOSI
-#define GB_MOSI 13
+#define GB_MOSI 23
 #endif
 #ifndef GB_SCLK
-#define GB_SCLK 14
+#define GB_SCLK 18
 #endif
 
+#ifdef FSTYPE_SDCARD
+  #include "SD.h"
+  #include "SPI.h"
 
-#include <LITTLEFS.h>
-#define FS LITTLEFS
+  #ifndef SD_CS 
+    #define SD_CS 15
+  #endif
+  #ifndef SD_SCK
+    #define SD_SCK 14
+  #endif
+  #ifndef SD_MOSI
+    #define SD_MOSI 13
+  #endif
+  #ifndef SD_MISO
+    #define SD_MISO 27
+  #endif
+
+  #define FSYS SD
+#else
+  #include <LITTLEFS.h>
+  #define FSYS LITTLEFS
+#endif
 
 #define MODE_PRINT true
 #define MODE_SERVE false

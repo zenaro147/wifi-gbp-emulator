@@ -5,7 +5,7 @@ String JsonErrorResponse (String msg) {
 
 String wifiGetConfig() {
   StaticJsonDocument<1023> conf;  
-  File confFile = FS.open("/conf.json");
+  File confFile = FSYS.open("/conf.json");
 
   if (confFile) {
     DeserializationError error = deserializeJson(conf, confFile.readString());
@@ -76,7 +76,7 @@ String wifiSetConfig(String body) {
     return JsonErrorResponse("cannot parse request body");
   }
 
-  File confFile = FS.open("/conf.json");
+  File confFile = FSYS.open("/conf.json");
 
   if (confFile) {
     deserializeJson(conf, confFile.readString()); // no need to check for an error - file will be re-written anyways
@@ -119,7 +119,7 @@ String wifiSetConfig(String body) {
     }
   }
 
-  File confFileUpdated = FS.open("/conf.json", "w");
+  File confFileUpdated = FSYS.open("/conf.json", "w");
   serializeJson(conf, confFileUpdated);
   confFileUpdated.close();
   conf.clear();
