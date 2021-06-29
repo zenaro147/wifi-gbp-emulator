@@ -37,7 +37,9 @@ void fs_setup() {
   Serial.println(" done");
 }
 
-int fs_info() {
+
+
+void fs_info() {
   uint64_t totalBytes=0;
   uint64_t usedBytes=0;
   totalBytes = FSYS.totalBytes();
@@ -47,10 +49,7 @@ int fs_info() {
   Serial.print(totalBytes);
   Serial.print(" | used: ");
   Serial.println(usedBytes);
-  
-    return (int)(
-      (((float)totalBytes - (float)usedBytes) / (float)totalBytes) * 100.0
-    );
+ 
 }
 
 #ifndef SENSE_BOOT_MODE

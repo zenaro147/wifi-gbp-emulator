@@ -10,7 +10,7 @@ unsigned int freeFileIndex = 0;
 uint8_t cmdPRNT=0x00;
 uint8_t chkHeader=99;
 
-byte image_data[83000] = {}; //moreless 14 photos (82.236) (max:86360)
+byte image_data[83000] = {}; //moreless 14 photos (82.236) -- ESP32 can handle up to 500 images without the app open or 400 with the app
 uint32_t img_index=0x00;
 
 // Dev Note: Gamboy camera sends data payload of 640 bytes usually
@@ -22,10 +22,8 @@ uint8_t gbp_serialIO_raw_buffer[GBP_BUFFER_SIZE] = {0};
 
 inline void gbp_packet_capture_loop();
 
-File file;
 TaskHandle_t TaskWrite;
 bool isWriting = false;
-bool detachRun = false;
 /*******************************************************************************
   Utility Functions
 *******************************************************************************/
@@ -59,7 +57,7 @@ void ICACHE_RAM_ATTR serialClock_ISR(void)
 unsigned int nextFreeFileIndex() {
   int totFiles = 0;
   File root = FSYS.open("/d");
-  file = root.openNextFile();
+  File file = root.openNextFile();
   while(file){
     if(file){
       totFiles++;
@@ -69,49 +67,17 @@ unsigned int nextFreeFileIndex() {
   return totFiles + 1;
 }
 
-
-
 void resetValues() {
   memset(image_data, 0x00, sizeof(image_data));
-  img_index = 0x00;    
-  
-  /*if (detachRun){
-    //Attach ISR Again
-    #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
-      attachInterrupt(digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);
-    #else
-      attachInterrupt(digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE); 
-    #endif
-    detachRun = false; 
-  }*/   
+  img_index = 0x00;     
     
   // Turn LED ON
   digitalWrite(LED_BLINK_PIN, false);
   Serial.println("Printer ready.");
-
-  Serial.print("yy-");  
-  Serial.print(chkHeader);
-  Serial.print("-");
-  Serial.print(cmdPRNT);
-  Serial.print("-");
-  Serial.print(isWriting);
-  Serial.print("-");
-  Serial.println(gbp_serial_io_should_print());
   
   cmdPRNT = 0x00;
   chkHeader = 99;  
   isWriting = false;
-  //delay(200);
-  //gbp_serial_io_print_done();
-  
-  Serial.print("zz-");  
-  Serial.print(chkHeader);
-  Serial.print("-");
-  Serial.print(cmdPRNT);
-  Serial.print("-");
-  Serial.print(isWriting);
-  Serial.print("-");
-  Serial.println(gbp_serial_io_should_print());
 }
 
 void storeData(void *pvParameters)
@@ -128,7 +94,7 @@ void storeData(void *pvParameters)
   sprintf(fileName, "/d/%05d.txt", freeFileIndex);
   digitalWrite(LED_BLINK_PIN, LOW);
 
-  file = FSYS.open(fileName, "w");
+  File file = FSYS.open(fileName, "w");
   if (!file) {
     Serial.println("file creation failed");
   }
@@ -138,12 +104,9 @@ void storeData(void *pvParameters)
   perf = millis() - perf;
   Serial.printf("File /d/%05d.txt written in %lums\n", freeFileIndex, perf);
 
-  freeFileIndex++;
-
-  uint8_t percUsed = fs_info();
-  if (percUsed > 5) { 
+  if (freeFileIndex < MAX_IMAGES) { 
+    freeFileIndex++;
     resetValues();
-    //gbp_serial_io_print_done();
     vTaskDelete(NULL); 
   } else {
     Serial.println("no more space on printer\nrebooting...");
@@ -168,10 +131,8 @@ void espprinter_setup() {
   digitalWrite(GB_MISO, LOW);
 
   freeFileIndex = nextFreeFileIndex();
-
-  int percUsed = fs_info();
   
-  if (percUsed < 5) {
+  if (freeFileIndex < MAX_IMAGES) {
     Serial.println("no more space on printer\nrebooting...");
     full();
   } 
@@ -190,11 +151,13 @@ void espprinter_setup() {
 #ifdef USE_OLED
 void showPrinterStats() {
   char printed[20];
-  int percUsed = fs_info();
-  
-  sprintf(printed, "%3d files", freeFileIndex - 1);
-  oled_msg(((String)percUsed)+((char)'%')+" remaining",printed);
-  
+  char remain[20];
+  sprintf(printed, "%3d printed", freeFileIndex - 1);
+  sprintf(remain, "%3d remaining", MAX_IMAGES + 1 - freeFileIndex);
+  oled_msg(
+    printed,
+    remain
+  );
   oled_drawLogo();
 }
 #endif
@@ -253,36 +216,11 @@ inline void gbp_packet_capture_loop() {
           if (!isWriting){
             oled_msg("Receiving...");
           }
-        #endif
-        Serial.print("xx-");  
-        Serial.print(chkHeader);
-        Serial.print("-");
-        Serial.print(cmdPRNT);
-        Serial.print("-");
-        Serial.print(isWriting);
-        Serial.print("-");
-        Serial.println(gbp_serial_io_should_print());
-          
+        #endif          
         digitalWrite(LED_BLINK_PIN, LOW);
         if (chkHeader == 2) {
-          Serial.print("aa-");  
-          Serial.print(chkHeader);
-          Serial.print("-");
-          Serial.print(cmdPRNT);
-          Serial.print("-");
-          Serial.print(isWriting);
-          Serial.print("-");
-          Serial.println(gbp_serial_io_should_print()); 
-          if (cmdPRNT > 0 && !isWriting /*&& img_index > 35200*/) {
+          if (cmdPRNT > 0 && !isWriting) {
             gbp_serial_io_print_set();  
-            Serial.print("bb-");  
-            Serial.print(chkHeader);
-            Serial.print("-");
-            Serial.print(cmdPRNT);
-            Serial.print("-");
-            Serial.print(isWriting);
-            Serial.print("-");
-            Serial.println(gbp_serial_io_should_print());
             isWriting=true;
             xTaskCreatePinnedToCore(storeData,            // Task function. 
                                     "storeData",          // name of task. 
@@ -292,14 +230,6 @@ inline void gbp_packet_capture_loop() {
                                     &TaskWrite,           // Task handle to keep track of created task 
                                     0);                   // pin task to core 0 
           }else{
-              Serial.print("cc-");  
-              Serial.print(chkHeader);
-              Serial.print("-");
-              Serial.print(cmdPRNT);
-              Serial.print("-");
-              Serial.print(isWriting);
-              Serial.print("-");
-              Serial.println(gbp_serial_io_should_print()); 
               cmdPRNT = 0x00;
               chkHeader = 99;
               isWriting = false;
@@ -330,8 +260,6 @@ void espprinter_loop() {
       #ifdef USE_OLED
         showPrinterStats();
       #endif 
-      /*chkHeader = 99;
-      freeFileIndex++;*/
     }
   }
   last_millis = curr_millis;  

@@ -22,7 +22,11 @@
 #define WIFI_CONNECT_TIMEOUT 10000
 #endif
 #ifndef MAX_IMAGES
-#define MAX_IMAGES 150
+  #ifdef FSTYPE_SDCARD
+    #define MAX_IMAGES 400
+  #else
+    #define MAX_IMAGES 150
+  #endif  
 #endif
 #ifndef WIFI_BLINK_DELAY
 #define WIFI_BLINK_DELAY 2000
