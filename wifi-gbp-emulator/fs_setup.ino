@@ -15,6 +15,10 @@ void fs_setup() {
     uint8_t cardType = SD.cardType();
     if(cardType == CARD_NONE){
         Serial.println("No SD card attached");
+        #ifdef USE_OLED
+          oled_msg("No SD Card","Rebooting...");
+          delay(3000);
+        #endif
         ESP.restart();
         return;
     }

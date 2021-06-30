@@ -118,6 +118,10 @@ void storeData(void *pvParameters)
 void full() {
   Serial.println("no more space on printer");
   digitalWrite(LED_BLINK_PIN, HIGH);
+  #ifdef USE_OLED
+    oled_msg("Printer full","Rebooting...");
+    delay(3000);
+  #endif
   ESP.restart();
 }
 
@@ -132,7 +136,7 @@ void espprinter_setup() {
 
   freeFileIndex = nextFreeFileIndex();
   
-  if (freeFileIndex < MAX_IMAGES) {
+  if (freeFileIndex > MAX_IMAGES) {
     Serial.println("no more space on printer\nrebooting...");
     full();
   } 
