@@ -2,11 +2,9 @@
 A GameBoy printer emulator which provides the received data over a WiFi connection  
 This code has been originally created for a "LOLIN(WEMOS) D1 R2 & mini" [ESP8266 based board](https://github.com/esp8266/arduino) and now adapted for a "DOIT ESP32 DEVKIT V1" [ESP32 based board](https://github.com/espressif/arduino-esp32)
 
-You can use the same code as well on a ESP8266, if you use it, I recommend to follow the instructions from the [Original Author](https://github.com/HerrZatacke/wifi-gbp-emulator)
+If you have a ESP8266, I recommend to check the original project from [HerrZatacke](https://github.com/HerrZatacke/wifi-gbp-emulator)
 
 The required (recommended) [gameboy printer web interface can be found on github as well](https://github.com/HerrZatacke/gb-printer-web/)  
-
-This (for now) is a Prototype branch to use the original code into the ESP32 (and try get some advantages from his hardware, like the dual core)
 
 ## Setup
 For uploading the Filesystem to the ESP you require the [Arduino ESP32 filesystem uploader](https://github.com/lorol/arduino-esp32fs-plugin). Follow the installation instructions on the repository.
@@ -88,15 +86,31 @@ Gameboy Original/Color Link Cable Pinout
 
 | Link Cable |  ESP32  |
 |------------|---------|
-| Pin 1      | G5      | 
+| Pin 1      | Any pin | 
 | Pin 2      | G19     |
 | Pin 3      | G23     |
 | Pin 5      | G18     |
 | Pin 6      | G       |
 
 ```
-Additionally an [OLED Display](https://github.com/HerrZatacke/wifi-gbp-emulator/#oled-display) can be added via G22 -> Display SCL / G21 -> Display SDA 
+Additionally an [OLED Display](https://github.com/HerrZatacke/wifi-gbp-emulator/#oled-display) can be added via G22 -> Display SCL / G21 -> Display SDA. If you have some trouble with these pins, you can use any other GPIO pin as SCL/SDA
 
+## Micro SD Card Setup
+You can add a [Micro SD Card like this](https://www.amazon.com/Adapter-Reader-interface-driver-Arduino/dp/B01MSNX0TW/) to save the dumps and the web server files.
+To use it, you need to uncomment `#define FSTYPE_SDCARD`
+Connect the pins following this schema
+```
+| SD ADAPTER |  ESP32  |
+|------------|---------|
+| CS         | G15     | 
+| SCK        | G14     |
+| MISO       | G27     | <-- DON'T USE THE G12... BUT YOU CAN USE ANY OTHER PIN AVAILABLE
+| MOSI       | G13     |
+| GND        | G       |
+| VCC        | V5      |
+
+```
+Instead use the [Arduino ESP32 filesystem uploader](https://github.com/lorol/arduino-esp32fs-plugin), just format your SD Card to `FAT32` and copy de contect of `DATA` folder to the root of your SD card
 
 ## Links / Research (from original branch)
 * Original GPB-Emulator by [mofosyne: Arduino Gameboy Printer Emulator](https://github.com/mofosyne/arduino-gameboy-printer-emulator)  
