@@ -16,10 +16,10 @@ void fs_setup() {
 int fs_info() {
   FSInfo fs_info;
   FS.info(fs_info);
-  Serial.print("FILESYSTEM total: ");
-  Serial.print(fs_info.totalBytes);
-  Serial.print(" | used: ");
-  Serial.println(fs_info.usedBytes);
+//  Serial.print("FILESYSTEM total: ");
+//  Serial.print(fs_info.totalBytes);
+//  Serial.print(" | used: ");
+//  Serial.println(fs_info.usedBytes);
 
   return (int)(
     (((float)fs_info.totalBytes - (float)fs_info.usedBytes) / (float)fs_info.totalBytes) * 100.0

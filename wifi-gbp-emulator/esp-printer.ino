@@ -10,7 +10,7 @@ unsigned int freeFileIndex = 0;
 uint8_t cmdPRNT=0x00;
 uint8_t chkHeader=99;
 
-byte image_data[30000] = {};
+byte image_data[36000] = {}; //moreless 6 photos (35.244)
 uint32_t img_index=0x00;
 
 // Dev Note: Gamboy camera sends data payload of 640 bytes usually
@@ -78,13 +78,6 @@ void resetValues() {
   digitalWrite(LED_BLINK_PIN, false);
   Serial.println("Printer ready.");
   
-  /* Attach ISR Again*/
-//  #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
-//    attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
-//  #else
-//    attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
-//  #endif
-  
   cmdPRNT = 0x00;
   chkHeader = 99;  
   isWriting = false;
@@ -92,24 +85,32 @@ void resetValues() {
 }
 
 void storeData(byte *image_data) {
-//  detachInterrupt(digitalPinToInterrupt(GB_SCLK));
-
   unsigned long perf = millis();
   char fileName[31];
   sprintf(fileName, "/d/%05d.txt", freeFileIndex);
 
   digitalWrite(LED_BLINK_PIN, LOW);
 
+
+  detachInterrupt(digitalPinToInterrupt(GB_SCLK));
+  
   File file = FS.open(fileName, "w");
   if (!file) {
     Serial.println("file creation failed");
   }
-
   // for (int i = 0 ; i < img_index ; i++){
   //   file.print((char)image_data[i]);
   // }
-  //file.write(image_data, img_index);
+  file.write(image_data, img_index);
   file.close();
+  
+  /* Attach ISR Again*/
+  #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
+    attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
+  #else
+    attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
+  #endif
+  
 
   perf = millis() - perf;
   Serial.printf("File /d/%05d.txt written in %lums\n", freeFileIndex, perf);
@@ -117,7 +118,7 @@ void storeData(byte *image_data) {
   freeFileIndex++;
   // ToDo: Handle percentages
   int percUsed = fs_info();
-  if (percUsed > 5) {
+  if (percUsed > 10) {
     resetValues();
   } else {
     Serial.println("no more space on printer\nrebooting...");
