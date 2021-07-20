@@ -76,8 +76,8 @@ void resetValues() {
   Serial.println("Printer ready.");
   
   cmdPRNT = 0x00;
-  chkHeader = 99;  
   isWriting = false;
+  chkHeader = 99;  
 }
 
 void storeData(void *pvParameters)
@@ -239,6 +239,10 @@ inline void gbp_packet_capture_loop() {
               isWriting = false;
               delay(200);
               gbp_serial_io_print_done();
+          }
+        }else{
+          if(chkHeader == 99 && !isWriting && cmdPRNT == 0){
+            gbp_serial_io_print_done();
           }
         }
         pktByteIndex = 0;
