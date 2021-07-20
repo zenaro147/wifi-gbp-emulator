@@ -118,7 +118,7 @@ void storeData(byte *image_data) {
   freeFileIndex++;
   // ToDo: Handle percentages
   int percUsed = fs_info();
-  if (percUsed > 10) {
+  if (percUsed > 5) {
     resetValues();
   } else {
     Serial.println("no more space on printer\nrebooting...");
