@@ -302,6 +302,10 @@ bool gpb_serial_io_init(size_t buffSize, uint8_t *buffPtr)
   return true;
 }
 
+void gbp_serial_io_print_set()
+{
+  gpb_pktIO.shouldPrint = true;
+}
 void gbp_serial_io_print_done()
 {
   gpb_pktIO.shouldPrint = false;
