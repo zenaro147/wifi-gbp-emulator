@@ -20,7 +20,7 @@
 #define WIFI_CONNECT_TIMEOUT 10000
 #endif
 #ifndef MAX_IMAGES
-#define MAX_IMAGES 150
+#define MAX_IMAGES 120
 #endif
 #ifndef WIFI_BLINK_DELAY
 #define WIFI_BLINK_DELAY 2000
