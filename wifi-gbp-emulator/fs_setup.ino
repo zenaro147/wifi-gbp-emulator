@@ -28,7 +28,8 @@ int fs_info() {
 
 #ifndef SENSE_BOOT_MODE
 bool fs_alternateBootMode() {
-  String bootFile = "bootmode.txt";
+  String bootFile = "bootmode.txt";  
+  
   if (FS.exists(bootFile)) {
     FS.remove(bootFile);
     return false;
@@ -36,6 +37,17 @@ bool fs_alternateBootMode() {
     File file = FS.open(bootFile, "w");
     file.write("BOOT", 4);
     file.close();
+    return true;
+  }
+}
+#endif
+
+#ifndef SENSE_BOOT_MODE
+bool fs_checkBootFile() {
+  String bootFile = "bootmode.txt";  
+  if (FS.exists(bootFile)) {
+    return false;
+  } else {
     return true;
   }
 }
