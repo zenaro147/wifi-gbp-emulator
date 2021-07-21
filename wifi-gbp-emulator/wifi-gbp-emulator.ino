@@ -13,10 +13,14 @@ void setup() {
   Serial.begin(38400);
   Serial.println("\n\n\n\n");
 
+  #ifdef USE_OLED
+    oled_setup();
+  #endif
+
   fs_setup();
   
   #ifdef USE_OLED
-    oled_setup();
+    oled_bootmessages();
   #endif
 
 

@@ -121,11 +121,12 @@ void oled_setup() {
 
   #ifdef OLED_ROTATE
   display.setRotation(2);
-  #endif
-  
+  #endif 
+   
   oled_drawSplashScreen();
-  delay(3000);
+}
 
+void oled_bootmessages(){
   bool bootMode;
   #ifdef SENSE_BOOT_MODE
   bootMode = digitalRead(GB_5V_OUT);
@@ -138,7 +139,6 @@ void oled_setup() {
   } else {
     oled_msg((String)" v" + VERSION + (String)"\n Booting server...");
   }
-  
 }
 
 void oled_msg(String message) {
