@@ -118,11 +118,11 @@ void storeData(byte *image_data) {
   freeFileIndex++;
   // ToDo: Handle percentages
   int percUsed = fs_info();
-  if (percUsed > 5) {
-    resetValues();
-  } else {
+  if (percUsed <= 5 || freeFileIndex > MAX_IMAGES) {
     Serial.println("no more space on printer\nrebooting...");
     full();
+  } else {
+    resetValues();
   }
 }
 
@@ -150,9 +150,7 @@ void espprinter_setup() {
   freeFileIndex = nextFreeFileIndex();
 
   int percUsed = fs_info();
-  if (percUsed > 5) {
-    resetValues();
-  } else {
+  if (percUsed <= 5 || freeFileIndex > MAX_IMAGES) {
     Serial.println("no more space on printer\nrebooting...");
     full();
   }
