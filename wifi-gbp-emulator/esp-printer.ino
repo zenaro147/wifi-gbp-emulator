@@ -149,9 +149,11 @@ void espprinter_setup() {
 
   freeFileIndex = nextFreeFileIndex();
 
-  if (freeFileIndex <= MAX_IMAGES) {
-    Serial.printf("Next file: /d/%05d.txt\n", freeFileIndex);
+  int percUsed = fs_info();
+  if (percUsed > 5) {
+    resetValues();
   } else {
+    Serial.println("no more space on printer\nrebooting...");
     full();
   }
 

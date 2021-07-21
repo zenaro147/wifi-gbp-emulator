@@ -48,7 +48,7 @@ void setup() {
     Serial.println("Booting in printer mode");
     Serial.println("-----------------------\n");
     digitalWrite(LED_BLINK_PIN, false);
-    fs_info();
+    //fs_info();
     espprinter_setup();
     #ifdef USE_OLED
     showPrinterStats();
@@ -58,7 +58,7 @@ void setup() {
     Serial.println("Booting in server mode");
     Serial.println("-----------------------\n");
     digitalWrite(LED_BLINK_PIN, true);
-    fs_info();
+    //fs_info();
     setupWifi();
     mdns_setup();
     webserver_setup();
