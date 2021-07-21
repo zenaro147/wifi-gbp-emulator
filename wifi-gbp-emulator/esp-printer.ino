@@ -10,7 +10,7 @@ unsigned int freeFileIndex = 0;
 uint8_t cmdPRNT=0x00;
 uint8_t chkHeader=99;
 
-byte image_data[36000] = {}; //moreless 6 photos (35.244)
+byte image_data[30000] = {}; //moreless 5 photos (29.370)
 uint32_t img_index=0x00;
 
 // Dev Note: Gamboy camera sends data payload of 640 bytes usually
