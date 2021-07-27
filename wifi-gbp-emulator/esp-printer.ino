@@ -10,7 +10,7 @@ unsigned int freeFileIndex = 0;
 uint8_t cmdPRNT=0x00;
 uint8_t chkHeader=99;
 
-byte image_data[83000] = {}; //moreless 14 photos (82.236) -- ESP32 can handle up to 500 images without the app open or 400 with the app
+byte image_data[12000] = {}; //moreless 14 photos (82.236) -- ESP32 can handle up to 500 images without the app open or 400 with the app
 uint32_t img_index=0x00;
 
 // Dev Note: Gamboy camera sends data payload of 640 bytes usually
@@ -24,6 +24,9 @@ inline void gbp_packet_capture_loop();
 
 TaskHandle_t TaskWrite;
 bool isWriting = false;
+
+bool setMultiPrint = false;
+unsigned int totalMultiImages = 1;
 /*******************************************************************************
   Utility Functions
 *******************************************************************************/
@@ -76,23 +79,26 @@ void resetValues() {
   Serial.println("Printer ready.");
   
   cmdPRNT = 0x00;
+  chkHeader = 99; 
   isWriting = false;
-  chkHeader = 99;  
+  gbp_serial_io_print_done();
 }
 
-void storeData(void *pvParameters)
-{
+void storeData(void *pvParameters){
   byte *image_data2 = ((byte*)pvParameters);
-  
   unsigned long perf = millis();
-  char fileName[31];
+  digitalWrite(LED_BLINK_PIN, LOW);
   
   #ifdef USE_OLED
     oled_msg("Saving...");
   #endif
   
-  sprintf(fileName, "/d/%05d.txt", freeFileIndex);
-  digitalWrite(LED_BLINK_PIN, LOW);
+  char fileName[31];
+  if(setMultiPrint){
+    sprintf(fileName, "/t/%05d_%05d.txt", freeFileIndex,totalMultiImages);
+  }else{
+    sprintf(fileName, "/d/%05d.txt", freeFileIndex);
+  }
 
   File file = FSYS.open(fileName, "w");
   if (!file) {
@@ -102,10 +108,19 @@ void storeData(void *pvParameters)
   file.close();
   
   perf = millis() - perf;
-  Serial.printf("File /d/%05d.txt written in %lums\n", freeFileIndex, perf);
+  if(setMultiPrint){
+    Serial.printf("File /t/%05d_%05d.txt written in %lums\n", freeFileIndex,totalMultiImages,perf);
+  }else{
+    Serial.printf("File /d/%05d.txt written in %lums\n", freeFileIndex, perf);
+  }
+  
 
-  if (freeFileIndex < MAX_IMAGES) { 
-    freeFileIndex++;
+  if (freeFileIndex < MAX_IMAGES) {
+    if(!setMultiPrint){
+      freeFileIndex++; 
+    }else{
+      totalMultiImages++;
+    }
     resetValues();
     vTaskDelete(NULL); 
   } else {
@@ -222,24 +237,19 @@ inline void gbp_packet_capture_loop() {
           }
         #endif          
         digitalWrite(LED_BLINK_PIN, LOW);
-        if (chkHeader == 2) {
-          if (cmdPRNT > 0 && !isWriting) {
-            gbp_serial_io_print_set();  
-            isWriting=true;
-            xTaskCreatePinnedToCore(storeData,            // Task function. 
-                                    "storeData",          // name of task. 
-                                    10000,                // Stack size of task 
-                                    (void*)&image_data,   // parameter of the task 
-                                    1,                    // priority of the task 
-                                    &TaskWrite,           // Task handle to keep track of created task 
-                                    0);                   // pin task to core 0 
-          }else{
-              cmdPRNT = 0x00;
-              chkHeader = 99;
-              isWriting = false;
-              delay(200);
-              gbp_serial_io_print_done();
+        if (chkHeader == 2 && !isWriting) {
+          gbp_serial_io_print_set();  
+          isWriting=true;
+          if(cmdPRNT == 0 && !setMultiPrint){
+            setMultiPrint=true;
           }
+          xTaskCreatePinnedToCore(storeData,            // Task function. 
+                                  "storeData",          // name of task. 
+                                  10000,                // Stack size of task 
+                                  (void*)&image_data,   // parameter of the task 
+                                  1,                    // priority of the task 
+                                  &TaskWrite,           // Task handle to keep track of created task 
+                                  0);                   // pin task to core 0 
         }
         pktByteIndex = 0;
         pktTotalCount++;
@@ -251,6 +261,76 @@ inline void gbp_packet_capture_loop() {
   }
 }
 
+
+void gpb_mergeMultiPrint(){
+  totalMultiImages--;
+  img_index = 0;
+  memset(image_data, 0x00, sizeof(image_data));
+
+  char path[31];
+  for (int i = 1 ; i <= totalMultiImages ; i++){
+    sprintf(path, "/t/%05d_%05d.txt", freeFileIndex,i);
+    //Read File
+    File file = FSYS.open(path);
+    if(!file){
+      Serial.println("Failed to open file for reading");
+      return;
+    }
+    while(file.available()){
+      image_data[img_index] = ((byte)file.read());
+      img_index++;
+    }
+    file.close();
+    FSYS.remove(path);
+    
+    //Write File
+    sprintf(path, "/d/%05d.txt", freeFileIndex);
+    if(i == 1){
+      file = FSYS.open(path, FILE_WRITE);
+    }else{
+      file = FSYS.open(path, FILE_APPEND);
+    }
+    if(!file){
+      Serial.println("Failed to open file for writing");
+      return;
+    }
+
+    if(i == 1){
+      for (int j = 0 ; j < img_index-14 ; j++){
+        file.print((char)image_data[j]);
+      }
+    }else{
+      if(i == totalMultiImages){
+        for (int j = 10 ; j < img_index ; j++){
+          file.print((char)image_data[j]);
+        }
+      }else{
+        for (int j = 10 ; j < img_index-14 ; j++){
+          file.print((char)image_data[j]);
+        }
+      }
+    }
+    file.close();
+    
+    memset(image_data, 0x00, sizeof(image_data));
+    img_index = 0;
+  } 
+  
+  setMultiPrint = false;
+  totalMultiImages = 1;
+  
+  if (freeFileIndex < MAX_IMAGES) {
+    freeFileIndex++; 
+    resetValues();
+  } else {
+    Serial.println("no more space on printer\nrebooting...");
+    full();
+  }
+}
+
+
+
+
 void espprinter_loop() {
   gbp_packet_capture_loop();
   
@@ -260,9 +340,32 @@ void espprinter_loop() {
   if (curr_millis > last_millis) {
     uint32_t elapsed_ms = curr_millis - last_millis;
     if (gbp_serial_io_timeout_handler(elapsed_ms)) {
-      digitalWrite(LED_BLINK_PIN, LOW);    
+      digitalWrite(LED_BLINK_PIN, LOW);   
+      if(setMultiPrint && totalMultiImages > 1 && !isWriting){
+        detachInterrupt(digitalPinToInterrupt(GB_SCLK));
+        #ifdef USE_OLED
+          oled_msg("Long Print detected","Merging Files...");
+        #endif
+        isWriting = true;   
+           
+        gpb_mergeMultiPrint();
+
+        #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
+          attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
+        #else
+          attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
+        #endif
+           
+        #ifdef USE_OLED
+          if(!isWriting){
+            showPrinterStats();
+          }
+        #endif     
+      }
       #ifdef USE_OLED
-        showPrinterStats();
+        if(!isWriting){
+          showPrinterStats();
+        }
       #endif 
     }
   }

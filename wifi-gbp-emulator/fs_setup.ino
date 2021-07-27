@@ -17,8 +17,8 @@ void fs_setup() {
         Serial.println("No SD card attached");
         #ifdef USE_OLED
           oled_msg("No SD Card","Rebooting...");
-          delay(3000);
         #endif
+        delay(3000);
         ESP.restart();
         return;
     }
@@ -38,7 +38,12 @@ void fs_setup() {
     Serial.printf("SD Card Size: %lluMB\n", cardSize);
   #endif
 
-  Serial.println(" done");
+  for (int i = 0; i < 100; i++) {
+    if (i % 10 == 0) {
+      Serial.print(".");
+    }
+  }
+  Serial.println(" done");    
 }
 
 

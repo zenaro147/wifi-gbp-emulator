@@ -14,9 +14,7 @@ bool hasNetworkSettings = false;
 bool bootMode;
 
 void setup() {
-
   Serial.begin(115200);
-
   Serial.println("\n\n\n\n");
 
   #ifdef USE_OLED
