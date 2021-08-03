@@ -75,7 +75,7 @@ make sure to send the data as a JSON string in the POST-Body
 
 ## Automatic update of the webserver content
 * You can run [`update_w.ps1`](./update_w.ps1) (windows-powershell) or [`update_w.sh`](./update_w.sh) (bash) to download the latest release of the [gb-printer-web](https://github.com/HerrZatacke/gb-printer-web/releases/) and automatically unzip it to the correct folder  
-* After doing so upload the content of that folder to the ESP via the [Arduino ESP32 filesystem uploader](https://github.com/lorol/arduino-esp32fs-plugin) in the Arduino IDE.
+* After doing so upload the content of that folder to the ESP via the [Arduino ESP32 filesystem uploader](https://github.com/lorol/arduino-esp32fs-plugin) in the Arduino IDE or copy to your SD Card.
 
 ## Hardware Setup
 Gameboy Original/Color Link Cable Pinout
@@ -96,36 +96,30 @@ Gameboy Original/Color Link Cable Pinout
 Additionally an [OLED Display](https://github.com/HerrZatacke/wifi-gbp-emulator/#oled-display) can be added via G22 -> Display SCL / G21 -> Display SDA. If you have some trouble with these pins, you can use any other GPIO pin as SCL/SDA
 
 ## Micro SD Card Setup
-You can add a [Micro SD Card like this](https://www.amazon.com/Adapter-Reader-interface-driver-Arduino/dp/B01MSNX0TW/) to save the dumps and the web server files.
-To use it, you need to uncomment `#define FSTYPE_SDCARD`
-Connect the pins following this schema
+You can add a [Micro SD Card like this](https://www.amazon.com/Adapter-Reader-interface-driver-Arduino/dp/B01MSNX0TW/) to save the dumps and the web server content.
+To use it, you need to uncomment `#define FSTYPE_SDCARD` and connect the pins following this schema
 ```
 | SD ADAPTER |  ESP32  |
 |------------|---------|
 | CS         | G15     | 
 | SCK        | G14     |
-| MISO       | G27     | <-- DON'T USE THE G12... BUT YOU CAN USE ANY OTHER PIN AVAILABLE
+| MISO       | G27     | <-- DON'T USE THE G12... YOU CAN USE ANY OTHER PIN AVAILABLE
 | MOSI       | G13     |
 | GND        | G       |
 | VCC        | V5      |
 
 ```
-Instead use the [Arduino ESP32 filesystem uploader](https://github.com/lorol/arduino-esp32fs-plugin), just format your SD Card to `FAT32` and copy de contect of `DATA` folder to the root of your SD card
-
-## Links / Research (from original branch)
-* Original GPB-Emulator by [mofosyne: Arduino Gameboy Printer Emulator](https://github.com/mofosyne/arduino-gameboy-printer-emulator)  
-* Tutorial on how to work with an ESP8266 by [ttapa: ESP8266 Beginner's Guide](https://tttapa.github.io/ESP8266/Chap01%20-%20ESP8266.html)  
-* Potentially faster library for data transfer [applefreak/esp8266-gameboy-printer](https://github.com/applefreak/esp8266-gameboy-printer)
-* ESP8266 D1 Mini [Pinout](https://escapequotes.net/esp8266-wemos-d1-mini-pins-and-diagram/)
-* SPIFFS/LittleFS [Filesystem Docs](https://arduino-esp8266.readthedocs.io/en/latest/filesystem.html)
-* [Link cable breakout board](https://github.com/Palmr/gb-link-cable)
-* [Lots of helpful GameBoy and GameBoy Camera resources](https://github.com/gbdev/awesome-gbdev)
+Instead use the [Arduino ESP32 filesystem uploader](https://github.com/lorol/arduino-esp32fs-plugin), just format your SD Card to `FAT32` and copy de content of `DATA` folder to the root of your SD card
 
 ## OLED Display
 You can add a [tiny oled display like this](https://www.amazon.de/gp/product/B07BDFXFRK) or [(probably) this](https://de.aliexpress.com/item/32672229793.html)   
 To use it, you need to uncomment `#define USE_OLED` and the following lines   
 The display will show the current wifi-config while in server mode, as well as the number of printed images  when in printer mode  
 
+## Links
+* Original GPB-Emulator by [mofosyne: Arduino Gameboy Printer Emulator](https://github.com/mofosyne/arduino-gameboy-printer-emulator)  
+* Original WiFi GBP Emulator by [HerrZatacke: WiFi GBP Emulator](https://github.com/HerrZatacke/wifi-gbp-emulator)
+
 ## Known Bugs
-ESP32 Only:
 * WifiMulti doesn't work properly. Only Access Point works or using a single Wifi Network;
+* Only 5 games don't have support yet. You can check the compatibility list here: [Game Boy Printer Emulator - Games Support](https://docs.google.com/spreadsheets/d/1RQeTHemyEQnWHbKEhUy16cPxR6vA3YfeBbyx2tIXWaU/edit#gid=0) 
