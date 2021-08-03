@@ -87,6 +87,8 @@ void resetValues() {
 void storeData(void *pvParameters){
   byte *image_data2 = ((byte*)pvParameters);
   unsigned long perf = millis();
+  byte inqypck[10] = {B10001000, B00110011, B00001111, B00000000, B00000000, B00000000, B00001111, B00000000, B10000001, B00000000};
+
   digitalWrite(LED_BLINK_PIN, LOW);
   
   #ifdef USE_OLED
@@ -105,6 +107,7 @@ void storeData(void *pvParameters){
     Serial.println("file creation failed");
   }
   file.write(image_data2, img_index);
+  file.write(inqypck, 10);
   file.close();
   
   perf = millis() - perf;
@@ -201,7 +204,11 @@ inline void gbp_packet_capture_loop() {
       if (pktByteIndex == 0) {
         pktDataLength = gbp_serial_io_dataBuff_getByte_Peek(4);
         pktDataLength |= (gbp_serial_io_dataBuff_getByte_Peek(5)<<8)&0xFF00;
-                     
+
+//        Serial.print("// ");
+//        Serial.print(pktTotalCount);
+//        Serial.print(" : ");
+//        Serial.println(gbpCommand_toStr(gbp_serial_io_dataBuff_getByte_Peek(2)));
 
         switch ((int)gbp_serial_io_dataBuff_getByte_Peek(2)) {
           case 1:
@@ -218,6 +225,10 @@ inline void gbp_packet_capture_loop() {
 
       // Print Hex Byte
       data_8bit = gbp_serial_io_dataBuff_getByte();
+
+//      Serial.print((char)nibbleToCharLUT[(data_8bit>>4)&0xF]);
+//      Serial.print((char)nibbleToCharLUT[(data_8bit>>0)&0xF]);
+//      Serial.print(" ");
 
       if (!isWriting){
         if (chkHeader == 1 || chkHeader == 2 || chkHeader == 4){
@@ -238,7 +249,7 @@ inline void gbp_packet_capture_loop() {
         #endif          
         digitalWrite(LED_BLINK_PIN, LOW);
         if (chkHeader == 2 && !isWriting) {
-          gbp_serial_io_print_set();  
+          //gbp_serial_io_print_set();  
           isWriting=true;
           if(cmdPRNT == 0 && !setMultiPrint){
             setMultiPrint=true;
@@ -251,6 +262,7 @@ inline void gbp_packet_capture_loop() {
                                   &TaskWrite,           // Task handle to keep track of created task 
                                   0);                   // pin task to core 0 
         }
+//        Serial.println("");
         pktByteIndex = 0;
         pktTotalCount++;
       } else {
@@ -266,6 +278,7 @@ void gpb_mergeMultiPrint(){
   totalMultiImages--;
   img_index = 0;
   memset(image_data, 0x00, sizeof(image_data));
+  Serial.println("Merging Files");
 
   char path[31];
   for (int i = 1 ; i <= totalMultiImages ; i++){
@@ -281,7 +294,7 @@ void gpb_mergeMultiPrint(){
       img_index++;
     }
     file.close();
-    FSYS.remove(path);
+//    FSYS.remove(path);
     
     //Write File
     sprintf(path, "/d/%05d.txt", freeFileIndex);
@@ -295,21 +308,26 @@ void gpb_mergeMultiPrint(){
       return;
     }
 
-    if(i == 1){
-      for (int j = 0 ; j < img_index-14 ; j++){
-        file.print((char)image_data[j]);
-      }
-    }else{
-      if(i == totalMultiImages){
-        for (int j = 10 ; j < img_index ; j++){
-          file.print((char)image_data[j]);
-        }
-      }else{
-        for (int j = 10 ; j < img_index-14 ; j++){
-          file.print((char)image_data[j]);
-        }
-      }
+    for (int j = 0 ; j < img_index ; j++){
+      file.print((char)image_data[j]);
     }
+      
+//    if(i == 1){
+//      for (int j = 0 ; j < img_index-14 ; j++){
+//        file.print((char)image_data[j]);
+//      }
+//    }else{
+//      if(i == totalMultiImages){
+//        for (int j = 10 ; j < img_index ; j++){
+//          file.print((char)image_data[j]);
+//        }
+//      }else{
+//        for (int j = 10 ; j < img_index-14 ; j++){
+//          file.print((char)image_data[j]);
+//        }
+//      }
+//    }
+
     file.close();
     
     memset(image_data, 0x00, sizeof(image_data));
@@ -319,6 +337,7 @@ void gpb_mergeMultiPrint(){
   setMultiPrint = false;
   totalMultiImages = 1;
   
+  Serial.printf("File %s written", path);
   if (freeFileIndex < MAX_IMAGES) {
     freeFileIndex++; 
     resetValues();
@@ -340,6 +359,7 @@ void espprinter_loop() {
   if (curr_millis > last_millis) {
     uint32_t elapsed_ms = curr_millis - last_millis;
     if (gbp_serial_io_timeout_handler(elapsed_ms)) {
+      Serial.println("Printer Timeout");
       digitalWrite(LED_BLINK_PIN, LOW);   
       if(setMultiPrint && totalMultiImages > 1 && !isWriting){
         detachInterrupt(digitalPinToInterrupt(GB_SCLK));
