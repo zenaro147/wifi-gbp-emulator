@@ -122,4 +122,4 @@ The display will show the current wifi-config while in server mode, as well as t
 
 ## Known Bugs
 * WifiMulti doesn't work properly. Only Access Point works or using a single Wifi Network;
-* Only 5 games don't have support yet. You can check the compatibility list here: [Game Boy Printer Emulator - Games Support](https://docs.google.com/spreadsheets/d/1RQeTHemyEQnWHbKEhUy16cPxR6vA3YfeBbyx2tIXWaU/edit#gid=0) 
+* You can check the compatibility list here: [Game Boy Printer Emulator - Games Support](https://docs.google.com/spreadsheets/d/1RQeTHemyEQnWHbKEhUy16cPxR6vA3YfeBbyx2tIXWaU/edit#gid=0) 
