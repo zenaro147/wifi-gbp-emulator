@@ -294,7 +294,7 @@ void gpb_mergeMultiPrint(){
       img_index++;
     }
     file.close();
-//    FSYS.remove(path);
+    FSYS.remove(path);
     
     //Write File
     sprintf(path, "/d/%05d.txt", freeFileIndex);
@@ -307,27 +307,7 @@ void gpb_mergeMultiPrint(){
       Serial.println("Failed to open file for writing");
       return;
     }
-
-    for (int j = 0 ; j < img_index ; j++){
-      file.print((char)image_data[j]);
-    }
-      
-//    if(i == 1){
-//      for (int j = 0 ; j < img_index-14 ; j++){
-//        file.print((char)image_data[j]);
-//      }
-//    }else{
-//      if(i == totalMultiImages){
-//        for (int j = 10 ; j < img_index ; j++){
-//          file.print((char)image_data[j]);
-//        }
-//      }else{
-//        for (int j = 10 ; j < img_index-14 ; j++){
-//          file.print((char)image_data[j]);
-//        }
-//      }
-//    }
-
+    file.write(image_data,img_index);
     file.close();
     
     memset(image_data, 0x00, sizeof(image_data));
