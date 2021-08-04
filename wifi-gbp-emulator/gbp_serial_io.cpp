@@ -45,7 +45,7 @@
 // Feature
 //#define FEATURE_CHECKSUM_SUPPORTED ///< WIP
 
-//#define GBP_BUSY_PACKET_COUNT 3 // 68 Inquiry packets is generally approximately how long it takes for a real printer to print. This is not a real printer so can be shorter
+#define GBP_BUSY_PACKET_COUNT 20 // 68 Inquiry packets is generally approximately how long it takes for a real printer to print. This is not a real printer so can be shorter
 
 
 /******************************************************************************/
@@ -115,8 +115,8 @@ static struct
   uint16_t statusBuffer; ///< This is send on every packet in the dummy data region
 
   // Status Packet Sequencing (For faking the printer for more advance games)
+  int busyPacketCountdown; 
   bool shouldPrint;
-  bool printISRTick;
   int untransPacketCountdown;
   int dataPacketCountdown;
 
@@ -290,8 +290,8 @@ bool gpb_serial_io_init(size_t buffSize, uint8_t *buffPtr)
   // reset status data
   gpb_pktIO.statusBuffer = 0x0000;
   gpb_pktIO.statusBuffer = GBP_DEVICE_ID << 8;
+  gpb_pktIO.busyPacketCountdown = 0; 
   gpb_pktIO.shouldPrint = false;
-  gpb_pktIO.printISRTick = false;
 
   // print data buffer
   gpb_cbuff_Init(&gpb_pktIO.dataBuffer, buffSize, buffPtr);
@@ -314,16 +314,6 @@ void gbp_serial_io_print_done()
 bool gbp_serial_io_should_print()
 {
   return gpb_pktIO.shouldPrint;
-}
-
-void gbp_serial_io_print_isr_done()
-{
-  gpb_pktIO.printISRTick = false;
-}
-
-bool gbp_serial_io_print_isr()
-{
-  return gpb_pktIO.printISRTick;
 }
 
 /******************************************************************************/
@@ -587,14 +577,16 @@ bool gpb_serial_io_OnChange_ISR(const bool GBP_SCLK, const bool GBP_SOUT)
         case GBP_COMMAND_INIT:
           gpb_pktIO.dataPacketCountdown = 6;
           gpb_pktIO.untransPacketCountdown = 0;
+          gpb_pktIO.busyPacketCountdown = 0; 
           gpb_pktIO.shouldPrint = false;
           gpb_status_bit_update_print_buffer_full(gpb_pktIO.statusBuffer, false);
           break;
         case GBP_COMMAND_PRINT:
+          gpb_pktIO.busyPacketCountdown = GBP_BUSY_PACKET_COUNT;
           gpb_pktIO.shouldPrint = true;
           break;
         case GBP_COMMAND_DATA:
-          gpb_pktIO.untransPacketCountdown = 3;
+          gpb_pktIO.untransPacketCountdown = 1; //3
           break;
         case GBP_COMMAND_BREAK:
           gpb_status_bit_update_low_battery(gpb_pktIO.statusBuffer, false);
@@ -606,28 +598,26 @@ bool gpb_serial_io_OnChange_ISR(const bool GBP_SCLK, const bool GBP_SOUT)
           gpb_status_bit_update_printer_busy(gpb_pktIO.statusBuffer, false);
           gpb_status_bit_update_checksum_error(gpb_pktIO.statusBuffer, false);
         case GBP_COMMAND_INQUIRY:
-          gpb_pktIO.printISRTick = true;
           if (gpb_pktIO.untransPacketCountdown > 0)
           {
             gpb_pktIO.untransPacketCountdown--;
             if (gpb_pktIO.untransPacketCountdown == 0)
             {
               gpb_status_bit_update_unprocessed_data(gpb_pktIO.statusBuffer, false);
-              if (gpb_pktIO.shouldPrint)
+              if (gpb_pktIO.busyPacketCountdown > 0)
               {
                 gpb_status_bit_update_printer_busy(gpb_pktIO.statusBuffer, true);
                 gpb_status_bit_update_print_buffer_full(gpb_pktIO.statusBuffer, true);
               }
             }
           }
-           // else if (gpb_pktIO.shouldPrint)
-           // {
-           //   gets turned false from "outside"
-           //   gpb_pktIO.shouldPrint = false;
-           // }
-          else if (!gpb_pktIO.shouldPrint)
+          else if (gpb_pktIO.busyPacketCountdown > 0)
           {
-            gpb_status_bit_update_printer_busy(gpb_pktIO.statusBuffer, false);
+            gpb_pktIO.busyPacketCountdown--;
+            if (gpb_pktIO.busyPacketCountdown == 0)
+            {
+              gpb_status_bit_update_printer_busy(gpb_pktIO.statusBuffer, false);
+            }
           }
           break;
         default:
@@ -654,19 +644,30 @@ bool gpb_serial_io_OnChange_ISR(const bool GBP_SCLK, const bool GBP_SOUT)
             gpb_pktIO.dataPacketCountdown--;
             if (gpb_pktIO.dataPacketCountdown == 0)
             {
-              gpb_status_bit_update_print_buffer_full(gpb_pktIO.statusBuffer, true);
+              //////////////////////////////////////////////////////Raphaël BOICHOT fix 3 August 2021//////////////////////////////////////////////////////////////////////////////////////
+              gpb_status_bit_update_unprocessed_data(gpb_pktIO.statusBuffer, false);
+              /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             }
           }
-          gpb_status_bit_update_unprocessed_data(gpb_pktIO.statusBuffer, true);
+          //////////////////////////////////////////////////////Raphaël BOICHOT fix 3 August 2021//////////////////////////////////////////////////////////////////////////////////////
+          gpb_status_bit_update_print_buffer_full(gpb_pktIO.statusBuffer, false);
+          gpb_status_bit_update_unprocessed_data(gpb_pktIO.statusBuffer, false);
+          /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
           if (gpb_pktIO.data_length == 0)
           {
+            //////////////////////////////////////////////////////Raphaël BOICHOT fix 3 August 2021//////////////////////////////////////////////////////////////////////////////////////
             gpb_status_bit_update_unprocessed_data(gpb_pktIO.statusBuffer, false);
+            gpb_status_bit_update_print_buffer_full(gpb_pktIO.statusBuffer, true);
+           /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
           }
           break;
         case GBP_COMMAND_BREAK:
           break;
         case GBP_COMMAND_INQUIRY:
-          if ((gpb_pktIO.untransPacketCountdown == 0) && (!gpb_pktIO.shouldPrint))
+          //////////////////////////////////////////////////////Raphaël BOICHOT fix 3 August 2021//////////////////////////////////////////////////////////////////////////////////////
+            gpb_status_bit_update_unprocessed_data(gpb_pktIO.statusBuffer, false);
+          /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+          if ((gpb_pktIO.untransPacketCountdown == 0) && (gpb_pktIO.busyPacketCountdown == 0))
           {
             gpb_status_bit_update_print_buffer_full(gpb_pktIO.statusBuffer, false);
           }
