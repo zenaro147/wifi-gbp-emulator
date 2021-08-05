@@ -28,7 +28,6 @@ bool setMultiPrint = false;
 unsigned int totalMultiImages = 1;
 
 uint8_t dtpckMC = 0;
-uint8_t inqypckToP = 0;
 
 /*******************************************************************************
   Utility Functions
@@ -83,11 +82,9 @@ void resetValues() {
   digitalWrite(LED_BLINK_PIN, false);
   Serial.println("Printer ready.");
   
+  cmdPRNT = 0x00;
   chkHeader = 99;  
-  
-  dtpckMC = 0x00;
-  inqypckToP = 0x00;
-  
+  dtpckMC = 0;
   isWriting = false;
 }
 
@@ -218,33 +215,13 @@ inline void gbp_packet_capture_loop() {
       if (pktByteIndex == 0) {
         pktDataLength = gbp_serial_io_dataBuff_getByte_Peek(4);
         pktDataLength |= (gbp_serial_io_dataBuff_getByte_Peek(5)<<8)&0xFF00;
-        
-        switch ((int)gbp_serial_io_dataBuff_getByte_Peek(2)) {
-          case 1:
-            cmdPRNT = 0x00;
-          case 2:
-            ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game //////////////////////////////////////////////
-            if (pktDataLength > 0){
-              dtpckMC++;
-            }
-            ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game //////////////////////////////////////////////
-          case 4:
-            chkHeader = (int)gbp_serial_io_dataBuff_getByte_Peek(2);
-            break;
-          case 15:
-            ////////////////////////////////////////////// FIX for Tales of Phantasia Loop //////////////////////////////////////////////
-            if (chkHeader == 2 && setMultiPrint && cmdPRNT > 0){
-              inqypckToP++;
-              if(inqypckToP > 19){
-                delay(1000);
-              }
-            }
-            ////////////////////////////////////////////// FIX for Tales of Phantasia Loop //////////////////////////////////////////////
-            break;
-          default:
-            break;
-        }
+        chkHeader = (int)gbp_serial_io_dataBuff_getByte_Peek(2);
 
+        ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game //////////////////////////////////////////////
+        if (chkHeader == 4 && pktDataLength > 0){
+          dtpckMC++;
+        }
+        ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game //////////////////////////////////////////////
         
         digitalWrite(LED_BLINK_PIN, HIGH);
       }
@@ -275,13 +252,13 @@ inline void gbp_packet_capture_loop() {
           isWriting=true;
           if((cmdPRNT == 0 || (cmdPRNT > 0 && dtpckMC == 1)) && !setMultiPrint){
             setMultiPrint=true;
-            dtpckMC=0x00;
+            dtpckMC=0;
           }else if(cmdPRNT > 0 && setMultiPrint){
             setMultiPrint=false;
           }
           storeData(image_data);
         }
-        pktByteIndex = 0x00;
+        pktByteIndex = 0;
         pktTotalCount++;
       } else {
         pktByteIndex++; // Byte hex split counter
@@ -323,7 +300,7 @@ void gpb_mergeMultiPrint(){
       file.close();
       
       memset(image_data, 0x00, sizeof(image_data));
-      img_index = 0x00;
+      img_index = 0;
       FS.remove(pathI);
     }
   } 
