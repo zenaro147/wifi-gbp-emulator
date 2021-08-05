@@ -23,7 +23,6 @@ void setup() {
     oled_bootmessages();
   #endif
 
-
   WiFi.disconnect();
   delay(1000);
 

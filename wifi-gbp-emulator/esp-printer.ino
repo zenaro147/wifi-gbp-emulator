@@ -64,6 +64,10 @@ void serialClock_ISR(void)
   digitalWrite(GB_MISO, txBit ? HIGH : LOW);
 }
 
+/*******************************************************************************
+  Check Next file available
+*******************************************************************************/
+
 unsigned int nextFreeFileIndex() {
   for (int i = 1; i < MAX_IMAGES; i++) {
     char path[31];
@@ -81,7 +85,6 @@ void resetValues() {
   
   // Turn LED ON
   digitalWrite(LED_BLINK_PIN, false);
-  Serial.println("Printer ready.");
   
   chkHeader = 99;  
   
@@ -94,7 +97,6 @@ void resetValues() {
 void storeData(byte *image_data) {
   unsigned long perf = millis();
   char fileName[31];
-  byte inqypck[10] = {B10001000, B00110011, B00001111, B00000000, B00000000, B00000000, B00001111, B00000000, B10000001, B00000000};
   
   digitalWrite(LED_BLINK_PIN, LOW);
   
@@ -115,7 +117,6 @@ void storeData(byte *image_data) {
     Serial.println("file creation failed");
   }
   file.write(image_data, img_index);
-  file.write(inqypck, 10);
   file.close();
   
   /* Attach ISR Again*/
@@ -150,7 +151,7 @@ void storeData(byte *image_data) {
 // Blink if printer is full.
 void full() {
   Serial.println("no more space on printer");
-
+  digitalWrite(LED_BLINK_PIN, HIGH);
   #ifdef USE_OLED
     oled_msg((String)"Printer is full :-(","Rebooting...");
   #endif
@@ -223,12 +224,12 @@ inline void gbp_packet_capture_loop() {
           case 1:
             cmdPRNT = 0x00;
           case 2:
+          case 4:
             ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game //////////////////////////////////////////////
             if (pktDataLength > 0){
               dtpckMC++;
             }
             ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game //////////////////////////////////////////////
-          case 4:
             chkHeader = (int)gbp_serial_io_dataBuff_getByte_Peek(2);
             break;
           case 15:
@@ -351,6 +352,7 @@ void espprinter_loop() {
   if (curr_millis > last_millis) {
     uint32_t elapsed_ms = curr_millis - last_millis;
     if (gbp_serial_io_timeout_handler(elapsed_ms)) {
+      Serial.println("Printer timeout.");
       digitalWrite(LED_BLINK_PIN, LOW);
 
       if(!setMultiPrint && totalMultiImages > 1 && !isWriting){
