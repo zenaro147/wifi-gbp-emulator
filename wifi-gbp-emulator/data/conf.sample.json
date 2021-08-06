@@ -1,0 +1,13 @@
+{
+  "mdns": "gameboyprinter",
+  "ap": {
+    "ssid":"gameboyprinter",
+    "psk":"gameboyprinter"
+  },
+  "networks": [
+    {
+      "ssid":"Your SSID",
+      "psk":"Your wifi password"
+    }
+  ]
+}

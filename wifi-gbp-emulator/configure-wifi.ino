@@ -119,7 +119,7 @@ String wifiSetConfig(String body) {
     }
   }
 
-  File confFileUpdated = FSYS.open("/conf.json", "w");
+  File confFileUpdated = FSYS.open("/conf.json", FILE_WRITE);
   serializeJson(conf, confFileUpdated);
   confFileUpdated.close();
   conf.clear();

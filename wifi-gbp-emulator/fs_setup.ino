@@ -7,7 +7,11 @@ void fs_setup() {
     FSYS.begin();
   #endif 
   if (!FSYS.begin(true)) {
-    Serial.println("LITTLEFS Mount Failed");
+    #ifdef FSTYPE_SDCARD
+      Serial.println("SD Card Mount Failed");
+    #else
+      Serial.println("LittleFS Mount Failed");
+    #endif
     return;
   }
 
@@ -38,14 +42,37 @@ void fs_setup() {
     Serial.printf("SD Card Size: %lluMB\n", cardSize);
   #endif
 
-  for (int i = 0; i < 100; i++) {
+  File root = FSYS.open("/t");
+  if(!root){
+      Serial.println("- failed to open Temp directory");
+      if(FSYS.mkdir("/t")){
+          Serial.println("Temp Dir created");
+      } else {
+          Serial.println("mkdir failed");
+      }
+  }else{
+    Serial.println("Temp folder already exist.");
+  }
+
+  root = FSYS.open("/d");
+  if(!root){
+      Serial.println("- failed to open Dump directory");
+      if(FSYS.mkdir("/d")){
+          Serial.println("Dump Dir created");
+      } else {
+          Serial.println("mkdir failed");
+      }
+  }else{
+    Serial.println("Dump folder already exist.");
+  }
+
+    for (int i = 0; i < 100; i++) {
     if (i % 10 == 0) {
       Serial.print(".");
     }
   }
   Serial.println(" done");    
 }
-
 
 
 void fs_info() {
@@ -67,10 +94,10 @@ bool fs_alternateBootMode() {
   char path[14];  
   sprintf(path, "/%s", bootmode);
   
-  if(SD.remove(path)){
+  if(FSYS.remove(path)){
     return false;
   } else {
-    File file = SD.open(path,"w");
+    File file = FSYS.open(path,FILE_WRITE);
     file.print("BOOT");
     file.close();
     return true;
@@ -85,7 +112,7 @@ bool fs_checkBootFile() {
   char path[14];  
   sprintf(path, "/%s", bootmode);
 
-  File file = SD.open(path);
+  File file = FSYS.open(path);
   if(file){
     return false;
   } else {

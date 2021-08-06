@@ -1,35 +1,35 @@
 // Define to use SD Card Module
-  //#define FSTYPE_SDCARD
-  //#define SD_CS 15
-  //#define SD_SCK 14
-  //#define SD_MOSI 13
-  //#define SD_MISO 27
+//  #define FSTYPE_SDCARD
+//  #define SD_CS 15
+//  #define SD_SCK 14
+//  #define SD_MOSI 13
+//  #define SD_MISO 26
 
 // Sense boot mode lets you use the signal on pin GB_5V_OUT to determine printer/server mode
-// #define SENSE_BOOT_MODE
-// #define GB_5V_OUT 5
+//  #define SENSE_BOOT_MODE
+//  #define GB_5V_OUT 5
 
 // Uncomment if using an adafruit oled display
-  //#define USE_OLED
+//  #define USE_OLED
 // Alternative OLED Pins
-  //#define OLED_SDA 21
-  //#define OLED_SCL 22
+//  #define OLED_SDA 21
+//  #define OLED_SCL 22
 // you can invert the display to easily spot the actual dimensions
-// #define OLED_INVERT
+//  #define OLED_INVERT
 // You can rotate the display by 180°
-// #define OLED_ROTATE
+//  #define OLED_ROTATE
 
 // You can override the defaults for AccesPoint SSIF/PASS/MDNSNAME
 // All those parameters can be configured within /data/conf.json
-// #define DEFAULT_AP_SSID "gameboyprinter"
-// #define DEFAULT_AP_PSK "gameboyprinter"
-// #define DEFAULT_MDNS_NAME "gameboyprinter"
+//  #define DEFAULT_AP_SSID "gameboyprinter"
+//  #define DEFAULT_AP_PSK "gameboyprinter"
+//  #define DEFAULT_MDNS_NAME "gameboyprinter"
 
 // Just the delay between the WiFi-Mode "Pings" of the LED
-// #define WIFI_BLINK_DELAY 5000
+//  #define WIFI_BLINK_DELAY 5000
 
 // Define different PINS depending on your hardware
-  //#define LED_BLINK_PIN 2
-  //#define GB_MISO 19
-  //#define GB_MOSI 23
-  //#define GB_SCLK 18
+//  #define LED_BLINK_PIN 2
+//  #define GB_MISO 19
+//  #define GB_MOSI 23
+//  #define GB_SCLK 18
