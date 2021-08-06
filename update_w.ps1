@@ -13,4 +13,5 @@ if ($continue -eq 'Yes') {
   Expand-Archive -Path ./data_w.zip -DestinationPath ./wifi-gbp-emulator/data/w
   Remove-Item ./data_w.zip
   New-Item ./wifi-gbp-emulator/data/t -itemtype directory
+  New-Item ./wifi-gbp-emulator/data/d -itemtype directory
 }

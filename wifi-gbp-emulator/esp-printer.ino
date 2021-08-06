@@ -28,8 +28,8 @@ bool isWriting = false;
 bool setMultiPrint = false;
 unsigned int totalMultiImages = 1;
 
-uint8_t dtpckMC = 0;
-uint8_t inqypckToP = 0;
+uint8_t dtpck = 0;
+uint8_t inqypck = 0;
 
 /*******************************************************************************
   Utility Functions
@@ -117,8 +117,8 @@ void resetValues() {
   
   chkHeader = 99; 
   
-  dtpckMC = 0x00;
-  inqypckToP = 0x00;
+  dtpck = 0x00;
+  inqypck = 0x00;
   cmdPRNT = 0x00;
   isWriting = false;
 }
@@ -143,7 +143,7 @@ void storeData(void *pvParameters){
     sprintf(fileName, "/d/%05d.txt", freeFileIndex);
   }
 
-  File file = FSYS.open(fileName, "w");
+  File file = FSYS.open(fileName, FILE_WRITE);
   if (!file) {
     Serial.println("file creation failed");
   }
@@ -251,6 +251,11 @@ inline void gbp_packet_capture_loop() {
         pktDataLength |= (gbp_serial_io_dataBuff_getByte_Peek(5)<<8)&0xFF00;
 
         chkHeader = (int)gbp_serial_io_dataBuff_getByte_Peek(2);
+        
+//        Serial.print("// ");
+//        Serial.print(pktTotalCount);
+//        Serial.print(" : ");
+//        Serial.println(gbpCommand_toStr(gbp_serial_io_dataBuff_getByte_Peek(2)));
 
         switch (chkHeader) {
           case 1:
@@ -259,18 +264,18 @@ inline void gbp_packet_capture_loop() {
           case 2:          
             break;
           case 4:
-            ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game //////////////////////////////////////////////
+            ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game and Nakayoshi Cooking Series 5 : Cake o Tsukurou //////////////////////////////////////////////
             if (pktDataLength > 0){
               //Count how many data packages was received before sending the print command
-              dtpckMC++;
+              dtpck++;
             }
-            ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game //////////////////////////////////////////////
+            ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game and Nakayoshi Cooking Series 5 : Cake o Tsukurou //////////////////////////////////////////////
             break;
           case 15:
             ////////////////////////////////////////////// FIX for Tales of Phantasia //////////////////////////////////////////////
             if (totalMultiImages > 1 && !isWriting && !setMultiPrint){
-              inqypckToP++;
-              if(inqypckToP > 20){
+              inqypck++;
+              if(inqypck > 20){
                 //Force to write the saves images  
                 xTaskCreatePinnedToCore(gpb_mergeMultiPrint,    // Task function. 
                                         "mergeMultiPrint",      // name of task. 
@@ -279,7 +284,7 @@ inline void gbp_packet_capture_loop() {
                                         1,                      // priority of the task 
                                         &TaskWrite,             // Task handle to keep track of created task 
                                         0);                     // pin task to core 0               
-                inqypckToP=0;
+                inqypck=0;
               }
             }
             ////////////////////////////////////////////// FIX for Tales of Phantasia //////////////////////////////////////////////
@@ -292,6 +297,8 @@ inline void gbp_packet_capture_loop() {
 
       // Print Hex Byte
       data_8bit = gbp_serial_io_dataBuff_getByte();
+//      Serial.print((char)nibbleToCharLUT[(data_8bit>>4)&0xF]);
+//      Serial.print((char)nibbleToCharLUT[(data_8bit>>0)&0xF]);
 
       if (!isWriting){
         if (chkHeader == 1 || chkHeader == 2 || chkHeader == 4){
@@ -313,9 +320,9 @@ inline void gbp_packet_capture_loop() {
         digitalWrite(LED_BLINK_PIN, LOW);
         if (chkHeader == 2 && !isWriting) {
           isWriting=true;
-          if((cmdPRNT == 0 || (cmdPRNT > 0 && dtpckMC == 1)) && !setMultiPrint){
+          if((cmdPRNT == 0 || ((cmdPRNT == 3 && dtpck == 1) || (cmdPRNT == 1 && dtpck == 6))) && !setMultiPrint){
             setMultiPrint=true;
-            dtpckMC=0x00;
+            dtpck=0x00;
           }else if(cmdPRNT > 0 && setMultiPrint){
             setMultiPrint=false;
           }
@@ -327,9 +334,11 @@ inline void gbp_packet_capture_loop() {
                                   &TaskWrite,           // Task handle to keep track of created task 
                                   0);                   // pin task to core 0 
         }
+//        Serial.println("");
         pktByteIndex = 0;
         pktTotalCount++;
       } else {
+//        Serial.print((char)' ');
         pktByteIndex++; // Byte hex split counter
         byteTotal++; // Byte total counter
       }

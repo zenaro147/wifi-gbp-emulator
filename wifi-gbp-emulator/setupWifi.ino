@@ -3,7 +3,7 @@
 
 void createEmptyConfig() {
   Serial.println("Preparing empty conf.json. \nYou can configure WiFi-Settings via the web interface.");
-  File confFileEmpty = FSYS.open("/conf.json", "w");
+  File confFileEmpty = FSYS.open("/conf.json", FILE_WRITE);
   confFileEmpty.println("{}");
   confFileEmpty.close();
 }

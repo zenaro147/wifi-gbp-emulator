@@ -67,8 +67,8 @@
 
   #define FSYS SD
 #else
-  #include <LITTLEFS.h>
-  #define FSYS LITTLEFS
+  #include <LittleFS.h>
+  #define FSYS LittleFS
 #endif
 
 #define MODE_PRINT true
