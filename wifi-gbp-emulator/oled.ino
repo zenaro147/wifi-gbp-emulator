@@ -123,21 +123,26 @@ void oled_setup() {
   }
 
   #ifdef OLED_ROTATE
-    display.setRotation(2);
-  #endif
-
-  bool bootMode;
-
-  #ifdef SENSE_BOOT_MODE
-    bootMode = digitalRead(GB_5V_OUT);
-  #else
-    bootMode = fs_alternateBootMode();
-  #endif
-
+  display.setRotation(2);
+  #endif 
+   
   oled_drawSplashScreen();
-  delay(3000);
+  delay(5000);
+}
 
-  
+void oled_bootmessages(){
+  bool bootMode;
+  #ifdef SENSE_BOOT_MODE
+  bootMode = digitalRead(GB_5V_OUT);
+  #else
+  bootMode = fs_checkBootFile();
+  #endif
+
+  if (bootMode == MODE_PRINT) {
+    oled_msg((String)" v" + VERSION + (String)"\n Booting printer...");
+  } else {
+    oled_msg((String)" v" + VERSION + (String)"\n Booting server...");
+  }
 }
 
 void oled_msg(String message) {

@@ -36,7 +36,7 @@
 
 /******************************************************************************/
 
-#define GBP_PKT10_TIMEOUT_MS 8000//500
+#define GBP_PKT10_TIMEOUT_MS 500//500
 
 // Testing
 //#define TEST_CHECKSUM_FORCE_FAIL
@@ -46,7 +46,7 @@
 //#define FEATURE_CHECKSUM_SUPPORTED ///< WIP
 
 //////////////////////////////////////////////////////Raphaël BOICHOT fix 3 August 2021//////////////////////////////////////////////////////////////////////////////////////
-#define GBP_BUSY_PACKET_COUNT 15 // 68 Inquiry packets is generally approximately how long it takes for a real printer to print. This is not a real printer so can be shorter
+#define GBP_BUSY_PACKET_COUNT 20 // 68 Inquiry packets is generally approximately how long it takes for a real printer to print. This is not a real printer so can be shorter
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /******************************************************************************/
@@ -588,7 +588,7 @@ bool gbp_serial_io_should_print()
           gpb_pktIO.shouldPrint = true;
           break;
         case GBP_COMMAND_DATA:
-          gpb_pktIO.untransPacketCountdown = 3;
+          gpb_pktIO.untransPacketCountdown = 2;
           break;
         case GBP_COMMAND_BREAK:
           gpb_status_bit_update_low_battery(gpb_pktIO.statusBuffer, false);

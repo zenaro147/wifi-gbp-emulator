@@ -12,4 +12,5 @@ if ($continue -eq 'Yes') {
   Invoke-WebRequest -Uri https://github.com/HerrZatacke/gb-printer-web/releases/latest/download/data_w.zip -OutFile ./data_w.zip
   Expand-Archive -Path ./data_w.zip -DestinationPath ./wifi-gbp-emulator/data/w
   Remove-Item ./data_w.zip
+  New-Item ./wifi-gbp-emulator/data/t -itemtype directory
 }

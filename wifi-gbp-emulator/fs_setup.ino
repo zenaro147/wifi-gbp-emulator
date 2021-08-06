@@ -54,18 +54,17 @@ void fs_info() {
   totalBytes = FSYS.totalBytes();
   usedBytes = FSYS.usedBytes();   
   
-  Serial.print("FILESYSTEM total: ");
-  Serial.print(totalBytes);
-  Serial.print(" | used: ");
-  Serial.println(usedBytes);
+//  Serial.print("FILESYSTEM total: ");
+//  Serial.print(totalBytes);
+//  Serial.print(" | used: ");
+//  Serial.println(usedBytes);
  
 }
 
 #ifndef SENSE_BOOT_MODE
 bool fs_alternateBootMode() {
   String bootmode = "bootmode.txt";
-  char path[14];
-  
+  char path[14];  
   sprintf(path, "/%s", bootmode);
   
   if(SD.remove(path)){
@@ -76,5 +75,21 @@ bool fs_alternateBootMode() {
     file.close();
     return true;
   } 
+}
+#endif
+
+
+#ifndef SENSE_BOOT_MODE
+bool fs_checkBootFile() {
+  String bootmode = "bootmode.txt";
+  char path[14];  
+  sprintf(path, "/%s", bootmode);
+
+  File file = SD.open(path);
+  if(file){
+    return false;
+  } else {
+    return true;
+  }
 }
 #endif

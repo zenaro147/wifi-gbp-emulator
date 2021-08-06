@@ -27,10 +27,13 @@ bool isWriting = false;
 
 bool setMultiPrint = false;
 unsigned int totalMultiImages = 1;
+
+uint8_t dtpckMC = 0;
+uint8_t inqypckToP = 0;
+
 /*******************************************************************************
   Utility Functions
 *******************************************************************************/
-
 const char *gbpCommand_toStr(int val) {
   switch (val) {
     case GBP_COMMAND_INIT    : return "INIT";
@@ -45,7 +48,6 @@ const char *gbpCommand_toStr(int val) {
 /*******************************************************************************
   Interrupt Service Routine
 *******************************************************************************/
-
 void ICACHE_RAM_ATTR serialClock_ISR(void)
 {
   // Serial Clock (1 = Rising Edge) (0 = Falling Edge); Master Output Slave Input (This device is slave)
@@ -57,6 +59,9 @@ void ICACHE_RAM_ATTR serialClock_ISR(void)
     digitalWrite(GB_MISO, txBit ? HIGH : LOW);
 }
 
+/*******************************************************************************
+  Check Next file available
+*******************************************************************************/
 unsigned int nextFreeFileIndex() {
   int totFiles = 0;
   File root = FSYS.open("/d");
@@ -70,24 +75,61 @@ unsigned int nextFreeFileIndex() {
   return totFiles + 1;
 }
 
+/*******************************************************************************
+  Show printer status on display
+*******************************************************************************/
+#ifdef USE_OLED
+void showPrinterStats() {
+  char printed[20];
+  char remain[20];
+  sprintf(printed, "%3d printed", freeFileIndex - 1);
+  sprintf(remain, "%3d remaining", MAX_IMAGES + 1 - freeFileIndex);
+  oled_msg(
+    printed,
+    remain
+  );
+  oled_drawLogo();
+}
+#endif
+
+/*******************************************************************************
+  Blink if printer is full.
+*******************************************************************************/
+void full() {
+  Serial.println("no more space on printer");
+  digitalWrite(LED_BLINK_PIN, HIGH);
+  #ifdef USE_OLED
+    oled_msg("Printer full","Rebooting...");
+  #endif
+  delay(3000);
+  ESP.restart();
+}
+
+/*******************************************************************************
+  Clear Variables before writing
+*******************************************************************************/
 void resetValues() {
   memset(image_data, 0x00, sizeof(image_data));
   img_index = 0x00;     
     
   // Turn LED ON
   digitalWrite(LED_BLINK_PIN, false);
-  Serial.println("Printer ready.");
   
-  cmdPRNT = 0x00;
   chkHeader = 99; 
+  
+  dtpckMC = 0x00;
+  inqypckToP = 0x00;
+  cmdPRNT = 0x00;
   isWriting = false;
-  gbp_serial_io_print_done();
 }
 
+/*******************************************************************************
+  Write received data into a file
+*******************************************************************************/
 void storeData(void *pvParameters){
-  byte *image_data2 = ((byte*)pvParameters);
   unsigned long perf = millis();
-  byte inqypck[10] = {B10001000, B00110011, B00001111, B00000000, B00000000, B00000000, B00001111, B00000000, B10000001, B00000000};
+  byte *image_data2 = ((byte*)pvParameters);
+  char fileName[31];
 
   digitalWrite(LED_BLINK_PIN, LOW);
   
@@ -95,8 +137,7 @@ void storeData(void *pvParameters){
     oled_msg("Saving...");
   #endif
   
-  char fileName[31];
-  if(setMultiPrint){
+  if(setMultiPrint || totalMultiImages > 1){
     sprintf(fileName, "/t/%05d_%05d.txt", freeFileIndex,totalMultiImages);
   }else{
     sprintf(fileName, "/d/%05d.txt", freeFileIndex);
@@ -107,21 +148,19 @@ void storeData(void *pvParameters){
     Serial.println("file creation failed");
   }
   file.write(image_data2, img_index);
-  file.write(inqypck, 10);
   file.close();
   
   perf = millis() - perf;
-  if(setMultiPrint){
+  if(setMultiPrint || totalMultiImages > 1){
     Serial.printf("File /t/%05d_%05d.txt written in %lums\n", freeFileIndex,totalMultiImages,perf);
   }else{
     Serial.printf("File /d/%05d.txt written in %lums\n", freeFileIndex, perf);
   }
   
-
   if (freeFileIndex < MAX_IMAGES) {
-    if(!setMultiPrint){
+    if(!setMultiPrint && totalMultiImages <= 1){
       freeFileIndex++; 
-    }else{
+    }else if (setMultiPrint){    
       totalMultiImages++;
     }
     resetValues();
@@ -132,17 +171,170 @@ void storeData(void *pvParameters){
   }    
 }
 
-// Blink if printer is full.
-void full() {
-  Serial.println("no more space on printer");
-  digitalWrite(LED_BLINK_PIN, HIGH);
-  #ifdef USE_OLED
-    oled_msg("Printer full","Rebooting...");
-    delay(3000);
-  #endif
-  ESP.restart();
+/*******************************************************************************
+  Merge multiple files into one single file
+*******************************************************************************/
+void gpb_mergeMultiPrint(void *pvParameters){
+  byte inqypck[10] = {B10001000, B00110011, B00001111, B00000000, B00000000, B00000000, B00001111, B00000000, B10000001, B00000000};
+  img_index = 0;
+  memset(image_data, 0x00, sizeof(image_data));
+  Serial.println("Merging Files");
+
+  char path[31];
+  for (int i = 1 ; i <= totalMultiImages ; i++){
+    sprintf(path, "/t/%05d_%05d.txt", freeFileIndex,i);
+    //Read File
+    File file = FSYS.open(path);
+    while(file.available()){
+      image_data[img_index] = ((byte)file.read());
+      img_index++;
+    }
+    file.close();
+    FSYS.remove(path);
+    
+    //Write File
+    sprintf(path, "/d/%05d.txt", freeFileIndex);
+    if(i == 1){
+      file = FSYS.open(path, FILE_WRITE);
+    }else{
+      file = FSYS.open(path, FILE_APPEND);
+    }
+    file.write(image_data,img_index);
+    file.write(inqypck, 10);
+    file.close();
+    
+    memset(image_data, 0x00, sizeof(image_data));
+    img_index = 0;
+  } 
+  
+  setMultiPrint = false;
+  totalMultiImages = 1;
+  
+  Serial.printf("File %s written", path);
+  if (freeFileIndex < MAX_IMAGES) {
+    freeFileIndex++; 
+    resetValues();
+  } else {
+    Serial.println("no more space on printer\nrebooting...");
+    full();
+  }
+  vTaskDelete(NULL); 
 }
 
+/*******************************************************************************
+  Main loop to capture data from the Gameboy
+*******************************************************************************/
+inline void gbp_packet_capture_loop() {
+  /* tiles received */
+  static uint32_t byteTotal = 0;
+  static uint32_t pktTotalCount = 0;
+  static uint32_t pktByteIndex = 0;
+  static uint16_t pktDataLength = 0;
+  const size_t dataBuffCount = gbp_serial_io_dataBuff_getByteCount();
+  if (
+    ((pktByteIndex != 0) && (dataBuffCount > 0)) ||
+    ((pktByteIndex == 0) && (dataBuffCount >= 6))
+  ) {
+    const char nibbleToCharLUT[] = "0123456789ABCDEF";
+    uint8_t data_8bit = 0;
+    
+    // Display the data payload encoded in hex
+    for (int i = 0 ; i < dataBuffCount ; i++) {     
+      // Start of a new packet
+      if (pktByteIndex == 0) {
+        pktDataLength = gbp_serial_io_dataBuff_getByte_Peek(4);
+        pktDataLength |= (gbp_serial_io_dataBuff_getByte_Peek(5)<<8)&0xFF00;
+
+        chkHeader = (int)gbp_serial_io_dataBuff_getByte_Peek(2);
+
+        switch (chkHeader) {
+          case 1:
+            cmdPRNT = 0x00;
+            break;
+          case 2:          
+            break;
+          case 4:
+            ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game //////////////////////////////////////////////
+            if (pktDataLength > 0){
+              //Count how many data packages was received before sending the print command
+              dtpckMC++;
+            }
+            ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game //////////////////////////////////////////////
+            break;
+          case 15:
+            ////////////////////////////////////////////// FIX for Tales of Phantasia //////////////////////////////////////////////
+            if (totalMultiImages > 1 && !isWriting && !setMultiPrint){
+              inqypckToP++;
+              if(inqypckToP > 20){
+                //Force to write the saves images  
+                xTaskCreatePinnedToCore(gpb_mergeMultiPrint,    // Task function. 
+                                        "mergeMultiPrint",      // name of task. 
+                                        10000,                  // Stack size of task 
+                                        NULL,                   // parameter of the task 
+                                        1,                      // priority of the task 
+                                        &TaskWrite,             // Task handle to keep track of created task 
+                                        0);                     // pin task to core 0               
+                inqypckToP=0;
+              }
+            }
+            ////////////////////////////////////////////// FIX for Tales of Phantasia //////////////////////////////////////////////
+            break;
+          default:
+            break;
+        }        
+        digitalWrite(LED_BLINK_PIN, HIGH);
+      }
+
+      // Print Hex Byte
+      data_8bit = gbp_serial_io_dataBuff_getByte();
+
+      if (!isWriting){
+        if (chkHeader == 1 || chkHeader == 2 || chkHeader == 4){
+          image_data[img_index] = (byte)data_8bit;
+          img_index++;
+          if (chkHeader == 2 && pktByteIndex == 7) { 
+            cmdPRNT = (int)((char)nibbleToCharLUT[(data_8bit>>0)&0xF])-'0';
+          } 
+        }
+      }
+      
+      // Splitting packets for convenience
+      if ((pktByteIndex > 5) && (pktByteIndex >= (9 + pktDataLength))) {
+        #ifdef USE_OLED
+          if (!isWriting){
+            oled_msg("Receiving...");
+          }
+        #endif          
+        digitalWrite(LED_BLINK_PIN, LOW);
+        if (chkHeader == 2 && !isWriting) {
+          isWriting=true;
+          if((cmdPRNT == 0 || (cmdPRNT > 0 && dtpckMC == 1)) && !setMultiPrint){
+            setMultiPrint=true;
+            dtpckMC=0x00;
+          }else if(cmdPRNT > 0 && setMultiPrint){
+            setMultiPrint=false;
+          }
+          xTaskCreatePinnedToCore(storeData,            // Task function. 
+                                  "storeData",          // name of task. 
+                                  10000,                // Stack size of task 
+                                  (void*)&image_data,   // parameter of the task 
+                                  1,                    // priority of the task 
+                                  &TaskWrite,           // Task handle to keep track of created task 
+                                  0);                   // pin task to core 0 
+        }
+        pktByteIndex = 0;
+        pktTotalCount++;
+      } else {
+        pktByteIndex++; // Byte hex split counter
+        byteTotal++; // Byte total counter
+      }
+    }
+  }
+}
+
+/*******************************************************************************
+  Init ESP printer
+*******************************************************************************/
 void espprinter_setup() {
   // Setup ports
   pinMode(GB_MISO, OUTPUT);
@@ -170,166 +362,9 @@ void espprinter_setup() {
   #endif
 }
 
-#ifdef USE_OLED
-void showPrinterStats() {
-  char printed[20];
-  char remain[20];
-  sprintf(printed, "%3d printed", freeFileIndex - 1);
-  sprintf(remain, "%3d remaining", MAX_IMAGES + 1 - freeFileIndex);
-  oled_msg(
-    printed,
-    remain
-  );
-  oled_drawLogo();
-}
-#endif
-
-inline void gbp_packet_capture_loop() {
-  /* tiles received */
-  static uint32_t byteTotal = 0;
-  static uint32_t pktTotalCount = 0;
-  static uint32_t pktByteIndex = 0;
-  static uint16_t pktDataLength = 0;
-  const size_t dataBuffCount = gbp_serial_io_dataBuff_getByteCount();
-  if (
-    ((pktByteIndex != 0) && (dataBuffCount > 0)) ||
-    ((pktByteIndex == 0) && (dataBuffCount >= 6))
-  ) {
-    const char nibbleToCharLUT[] = "0123456789ABCDEF";
-    uint8_t data_8bit = 0;
-    
-    // Display the data payload encoded in hex
-    for (int i = 0 ; i < dataBuffCount ; i++) {     
-      // Start of a new packet
-      if (pktByteIndex == 0) {
-        pktDataLength = gbp_serial_io_dataBuff_getByte_Peek(4);
-        pktDataLength |= (gbp_serial_io_dataBuff_getByte_Peek(5)<<8)&0xFF00;
-
-//        Serial.print("// ");
-//        Serial.print(pktTotalCount);
-//        Serial.print(" : ");
-//        Serial.println(gbpCommand_toStr(gbp_serial_io_dataBuff_getByte_Peek(2)));
-
-        switch ((int)gbp_serial_io_dataBuff_getByte_Peek(2)) {
-          case 1:
-          case 2:
-          case 4:
-            chkHeader = (int)gbp_serial_io_dataBuff_getByte_Peek(2);
-            break;
-          default:
-            break;
-        }
-                
-        digitalWrite(LED_BLINK_PIN, HIGH);
-      }
-
-      // Print Hex Byte
-      data_8bit = gbp_serial_io_dataBuff_getByte();
-
-//      Serial.print((char)nibbleToCharLUT[(data_8bit>>4)&0xF]);
-//      Serial.print((char)nibbleToCharLUT[(data_8bit>>0)&0xF]);
-//      Serial.print(" ");
-
-      if (!isWriting){
-        if (chkHeader == 1 || chkHeader == 2 || chkHeader == 4){
-          image_data[img_index] = (byte)data_8bit;
-          img_index++;
-          if (chkHeader == 2 && pktByteIndex == 7) { 
-            cmdPRNT = (int)((char)nibbleToCharLUT[(data_8bit>>0)&0xF])-'0';
-          } 
-        }
-      }
-      
-      // Splitting packets for convenience
-      if ((pktByteIndex > 5) && (pktByteIndex >= (9 + pktDataLength))) {
-        #ifdef USE_OLED
-          if (!isWriting){
-            oled_msg("Receiving...");
-          }
-        #endif          
-        digitalWrite(LED_BLINK_PIN, LOW);
-        if (chkHeader == 2 && !isWriting) {
-          //gbp_serial_io_print_set();  
-          isWriting=true;
-          if(cmdPRNT == 0 && !setMultiPrint){
-            setMultiPrint=true;
-          }
-          xTaskCreatePinnedToCore(storeData,            // Task function. 
-                                  "storeData",          // name of task. 
-                                  10000,                // Stack size of task 
-                                  (void*)&image_data,   // parameter of the task 
-                                  1,                    // priority of the task 
-                                  &TaskWrite,           // Task handle to keep track of created task 
-                                  0);                   // pin task to core 0 
-        }
-//        Serial.println("");
-        pktByteIndex = 0;
-        pktTotalCount++;
-      } else {
-        pktByteIndex++; // Byte hex split counter
-        byteTotal++; // Byte total counter
-      }
-    }
-  }
-}
-
-
-void gpb_mergeMultiPrint(){
-  totalMultiImages--;
-  img_index = 0;
-  memset(image_data, 0x00, sizeof(image_data));
-  Serial.println("Merging Files");
-
-  char path[31];
-  for (int i = 1 ; i <= totalMultiImages ; i++){
-    sprintf(path, "/t/%05d_%05d.txt", freeFileIndex,i);
-    //Read File
-    File file = FSYS.open(path);
-    if(!file){
-      Serial.println("Failed to open file for reading");
-      return;
-    }
-    while(file.available()){
-      image_data[img_index] = ((byte)file.read());
-      img_index++;
-    }
-    file.close();
-    FSYS.remove(path);
-    
-    //Write File
-    sprintf(path, "/d/%05d.txt", freeFileIndex);
-    if(i == 1){
-      file = FSYS.open(path, FILE_WRITE);
-    }else{
-      file = FSYS.open(path, FILE_APPEND);
-    }
-    if(!file){
-      Serial.println("Failed to open file for writing");
-      return;
-    }
-    file.write(image_data,img_index);
-    file.close();
-    
-    memset(image_data, 0x00, sizeof(image_data));
-    img_index = 0;
-  } 
-  
-  setMultiPrint = false;
-  totalMultiImages = 1;
-  
-  Serial.printf("File %s written", path);
-  if (freeFileIndex < MAX_IMAGES) {
-    freeFileIndex++; 
-    resetValues();
-  } else {
-    Serial.println("no more space on printer\nrebooting...");
-    full();
-  }
-}
-
-
-
-
+/*******************************************************************************
+  Loop tasks from ESP printer
+*******************************************************************************/
 void espprinter_loop() {
   gbp_packet_capture_loop();
   
@@ -341,27 +376,26 @@ void espprinter_loop() {
     if (gbp_serial_io_timeout_handler(elapsed_ms)) {
       Serial.println("Printer Timeout");
       digitalWrite(LED_BLINK_PIN, LOW);   
-      if(setMultiPrint && totalMultiImages > 1 && !isWriting){
-        detachInterrupt(digitalPinToInterrupt(GB_SCLK));
+
+      if(!setMultiPrint && totalMultiImages > 1 && !isWriting){
         #ifdef USE_OLED
           oled_msg("Long Print detected","Merging Files...");
         #endif
-        isWriting = true;   
-           
-        gpb_mergeMultiPrint();
-
-        #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
-          attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
-        #else
-          attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
-        #endif
-           
-        #ifdef USE_OLED
-          if(!isWriting){
-            showPrinterStats();
-          }
-        #endif     
+        isWriting = true;
+        xTaskCreatePinnedToCore(gpb_mergeMultiPrint,    // Task function. 
+                        "mergeMultiPrint",              // name of task. 
+                        10000,                          // Stack size of task 
+                        NULL,                           // parameter of the task 
+                        1,                              // priority of the task 
+                        &TaskWrite,                     // Task handle to keep track of created task 
+                        0);                             // pin task to core 0  
+      #ifdef USE_OLED
+        if(!isWriting){
+          showPrinterStats();
+        }
+      #endif 
       }
+      
       #ifdef USE_OLED
         if(!isWriting){
           showPrinterStats();

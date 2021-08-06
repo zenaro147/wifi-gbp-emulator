@@ -22,6 +22,10 @@ void setup() {
   #endif
 
   fs_setup();
+  
+  #ifdef USE_OLED
+    oled_bootmessages();
+  #endif
 
   WiFi.disconnect();
   delay(1000);
@@ -37,9 +41,6 @@ void setup() {
 
   Serial.println((String)"\n\nv" + VERSION);
   if (bootMode == MODE_PRINT) {
-    #ifdef USE_OLED
-      oled_msg((String)" v" + VERSION + (String)"\n Booting printer...");
-    #endif
     Serial.println("-----------------------");
     Serial.println("Booting in printer mode");
     Serial.println("-----------------------\n");
@@ -48,15 +49,11 @@ void setup() {
     #ifdef USE_OLED
       showPrinterStats();
     #endif
-  } else {
-    #ifdef USE_OLED
-      oled_msg((String)" v" + VERSION + (String)"\n Booting server...");
-    #endif    
+  } else {  
     Serial.println("-----------------------");
     Serial.println("Booting in server mode");
     Serial.println("-----------------------\n");
     digitalWrite(LED_BLINK_PIN, true);
-    fs_info();
     setupWifi();
     mdns_setup();
     webserver_setup();
