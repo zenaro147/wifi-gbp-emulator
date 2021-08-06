@@ -588,7 +588,7 @@ bool gbp_serial_io_should_print()
           gpb_pktIO.shouldPrint = true;
           break;
         case GBP_COMMAND_DATA:
-          gpb_pktIO.untransPacketCountdown = 2;
+          gpb_pktIO.untransPacketCountdown = 0; //3
           break;
         case GBP_COMMAND_BREAK:
           gpb_status_bit_update_low_battery(gpb_pktIO.statusBuffer, false);
@@ -600,7 +600,7 @@ bool gbp_serial_io_should_print()
           gpb_status_bit_update_printer_busy(gpb_pktIO.statusBuffer, false);
           gpb_status_bit_update_checksum_error(gpb_pktIO.statusBuffer, false);
         case GBP_COMMAND_INQUIRY:
-          if (gpb_pktIO.untransPacketCountdown > 0)
+          /*if (gpb_pktIO.untransPacketCountdown > 0)
           {
             gpb_pktIO.untransPacketCountdown--;
             if (gpb_pktIO.untransPacketCountdown == 0)
@@ -613,8 +613,11 @@ bool gbp_serial_io_should_print()
               }
             }
           }
-          else if (gpb_pktIO.busyPacketCountdown > 0)
+          else*/ if (gpb_pktIO.busyPacketCountdown > 0)
           {
+            gpb_status_bit_update_unprocessed_data(gpb_pktIO.statusBuffer, false);
+            gpb_status_bit_update_printer_busy(gpb_pktIO.statusBuffer, true);
+            gpb_status_bit_update_print_buffer_full(gpb_pktIO.statusBuffer, true);
             gpb_pktIO.busyPacketCountdown--;
             if (gpb_pktIO.busyPacketCountdown == 0)
             {

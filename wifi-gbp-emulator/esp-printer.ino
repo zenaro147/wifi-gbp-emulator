@@ -218,6 +218,11 @@ void gpb_mergeMultiPrint(void *pvParameters){
     Serial.println("no more space on printer\nrebooting...");
     full();
   }
+
+  #ifdef USE_OLED
+    showPrinterStats();
+  #endif 
+  
   vTaskDelete(NULL); 
 }
 
@@ -389,11 +394,6 @@ void espprinter_loop() {
                         1,                              // priority of the task 
                         &TaskWrite,                     // Task handle to keep track of created task 
                         0);                             // pin task to core 0  
-      #ifdef USE_OLED
-        if(!isWriting){
-          showPrinterStats();
-        }
-      #endif 
       }
       
       #ifdef USE_OLED
