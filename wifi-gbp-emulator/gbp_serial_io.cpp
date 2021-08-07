@@ -35,8 +35,11 @@
 #include "gbp_cbuff.h"
 
 /******************************************************************************/
-
-#define GBP_PKT10_TIMEOUT_MS 500//500
+#ifdef FSTYPE_SDCARD
+  #define GBP_PKT10_TIMEOUT_MS 500 //500
+#else
+  #define GBP_PKT10_TIMEOUT_MS 5000 //500
+#endif
 
 // Testing
 //#define TEST_CHECKSUM_FORCE_FAIL
@@ -46,7 +49,11 @@
 //#define FEATURE_CHECKSUM_SUPPORTED ///< WIP
 
 //////////////////////////////////////////////////////Raphaël BOICHOT fix 3 August 2021//////////////////////////////////////////////////////////////////////////////////////
-#define GBP_BUSY_PACKET_COUNT 20 // 68 Inquiry packets is generally approximately how long it takes for a real printer to print. This is not a real printer so can be shorter
+#ifdef FSTYPE_SDCARD
+  #define GBP_BUSY_PACKET_COUNT 20 // 68 Inquiry packets is generally approximately how long it takes for a real printer to print. This is not a real printer so can be shorter
+#else
+  #define GBP_BUSY_PACKET_COUNT 68 // 68 Inquiry packets is generally approximately how long it takes for a real printer to print. This is not a real printer so can be shorter
+#endif
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /******************************************************************************/

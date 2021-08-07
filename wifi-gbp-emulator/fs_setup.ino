@@ -12,6 +12,9 @@ void fs_setup() {
     #else
       Serial.println("LittleFS Mount Failed");
     #endif
+    #ifdef USE_OLED
+      oled_msg("ERROR", "Can not mount File System Card");
+    #endif
     return;
   }
 

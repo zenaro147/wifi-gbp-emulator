@@ -11,6 +11,7 @@ uint8_t cmdPRNT=0x00;
 uint8_t chkHeader=99;
 
 byte image_data[12000] = {}; //moreless 14 photos (82.236) -- ESP32 can handle up to 500 images without the app open or 400 with the app
+byte img_tmp[12000] = {};
 uint32_t img_index=0x00;
 
 // Dev Note: Gamboy camera sends data payload of 640 bytes usually
@@ -130,7 +131,7 @@ void storeData(void *pvParameters){
   unsigned long perf = millis();
   byte *image_data2 = ((byte*)pvParameters);
   char fileName[31];
-
+  
   digitalWrite(LED_BLINK_PIN, LOW);
   
   #ifdef USE_OLED
@@ -142,7 +143,7 @@ void storeData(void *pvParameters){
   }else{
     sprintf(fileName, "/d/%05d.txt", freeFileIndex);
   }
-
+  
   File file = FSYS.open(fileName, FILE_WRITE);
   if (!file) {
     Serial.println("file creation failed");
@@ -326,10 +327,11 @@ inline void gbp_packet_capture_loop() {
           }else if(cmdPRNT > 0 && setMultiPrint){
             setMultiPrint=false;
           }
+          memcpy(img_tmp,image_data,12000);
           xTaskCreatePinnedToCore(storeData,            // Task function. 
                                   "storeData",          // name of task. 
                                   10000,                // Stack size of task 
-                                  (void*)&image_data,   // parameter of the task 
+                                  (void*)&img_tmp,   // parameter of the task 
                                   1,                    // priority of the task 
                                   &TaskWrite,           // Task handle to keep track of created task 
                                   0);                   // pin task to core 0 
@@ -412,5 +414,5 @@ void espprinter_loop() {
       #endif 
     }
   }
-  last_millis = curr_millis;  
+  last_millis = curr_millis; 
 }
