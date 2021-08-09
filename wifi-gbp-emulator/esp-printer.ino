@@ -110,7 +110,6 @@ void full() {
   Clear Variables before writing
 *******************************************************************************/
 void resetValues() {
-  memset(image_data, 0x00, sizeof(image_data));
   img_index = 0x00;     
     
   // Turn LED ON
@@ -130,6 +129,7 @@ void resetValues() {
 void storeData(void *pvParameters){
   unsigned long perf = millis();
   byte *image_data2 = ((byte*)pvParameters);
+  int img_index2=img_index;
   char fileName[31];
   
   digitalWrite(LED_BLINK_PIN, LOW);
@@ -148,7 +148,7 @@ void storeData(void *pvParameters){
   if (!file) {
     Serial.println("file creation failed");
   }
-  file.write(image_data2, img_index);
+  file.write(image_data2, img_index2);
   file.close();
   
   perf = millis() - perf;
@@ -335,6 +335,7 @@ inline void gbp_packet_capture_loop() {
                                   1,                    // priority of the task 
                                   &TaskWrite,           // Task handle to keep track of created task 
                                   0);                   // pin task to core 0 
+          memset(image_data, 0x00, sizeof(image_data));
         }
 //        Serial.println("");
         pktByteIndex = 0;
