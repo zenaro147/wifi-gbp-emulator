@@ -98,34 +98,36 @@ void loop() {
 
     #ifdef BUTTON_FEATURE 
       // Feature to detect a short press and a Long Press
-      if (digitalRead(BTN_PUSH) == HIGH) {  
-        if (buttonActive == false) {  
-          buttonActive = true;
-          buttonTimer = millis();  
-        }  
-        if ((millis() - buttonTimer > longPressTime) && (longPressActive == false)) {  
-          longPressActive = true;
-          Serial.println("Rebooting...");
-          delay(1000);
-          ESP.restart();
-        }  
-      } else {  
-        if (buttonActive == true) {  
-          if (longPressActive == true) {  
-            longPressActive = false;  
-          } else {
-            if((totalMultiImages-1) > 1 && !isWriting){
-              Serial.println("Force File Merger");
-              #ifdef USE_OLED
-                oled_msg("Force Merging Files...");
-              #endif
-              isWriting = true;
-              totalMultiImages--;
-              callFileMerger();
-            }
+      if(!isWriting){
+        if (digitalRead(BTN_PUSH) == HIGH) {  
+          if (buttonActive == false) {  
+            buttonActive = true;
+            buttonTimer = millis();  
           }  
-          buttonActive = false;  
-        }  
+          if ((millis() - buttonTimer > longPressTime) && (longPressActive == false)) {  
+            longPressActive = true;
+            Serial.println("Rebooting...");
+            delay(500);
+            ESP.restart();
+          }  
+        } else {  
+          if (buttonActive == true) {
+            if (longPressActive == true) {
+              longPressActive = false;  
+            } else {
+              if((totalMultiImages-1) > 1){
+                Serial.println("Force File Merger");
+                #ifdef USE_OLED
+                  oled_msg("Force Merging Files...");
+                #endif
+                isWriting = true;
+                totalMultiImages--;
+                callFileMerger();
+              }
+            }  
+            buttonActive = false;  
+          }  
+        }
       }
     #endif
     
