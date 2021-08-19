@@ -24,10 +24,8 @@ uint8_t gbp_serialIO_raw_buffer[GBP_BUFFER_SIZE] = {0};
 inline void gbp_packet_capture_loop();
 
 TaskHandle_t TaskWrite;
-bool isWriting = false;
 
 bool setMultiPrint = false;
-unsigned int totalMultiImages = 1;
 
 uint8_t dtpck = 0;
 uint8_t inqypck = 0;
@@ -278,13 +276,7 @@ inline void gbp_packet_capture_loop() {
               inqypck++;
               if(inqypck > 20){
                 //Force to write the saves images  
-                xTaskCreatePinnedToCore(gpb_mergeMultiPrint,    // Task function. 
-                                        "mergeMultiPrint",      // name of task. 
-                                        10000,                  // Stack size of task 
-                                        NULL,                   // parameter of the task 
-                                        1,                      // priority of the task 
-                                        &TaskWrite,             // Task handle to keep track of created task 
-                                        0);                     // pin task to core 0               
+                callFileMerger();           
                 inqypck=0;
               }
             }
@@ -321,11 +313,13 @@ inline void gbp_packet_capture_loop() {
         digitalWrite(LED_BLINK_PIN, LOW);
         if (chkHeader == 2 && !isWriting) {
           isWriting=true;
-          if((cmdPRNT == 0 || ((cmdPRNT == 3 && dtpck == 1) || (cmdPRNT == 1 && dtpck == 6))) && !setMultiPrint){
+          if((cmdPRNT == 0 || ((cmdPRNT == 1 && dtpck == 1) || (cmdPRNT == 1 && dtpck == 6))) && !setMultiPrint){
             setMultiPrint=true;
             dtpck=0x00;
-          }else if(cmdPRNT > 0 && setMultiPrint){
-            setMultiPrint=false;
+          }else{
+            if(cmdPRNT > 0 && setMultiPrint){
+              setMultiPrint=false; 
+            }
           }
           memcpy(img_tmp,image_data,12000);
           xTaskCreatePinnedToCore(storeData,            // Task function. 
@@ -399,13 +393,7 @@ void espprinter_loop() {
           oled_msg("Long Print detected","Merging Files...");
         #endif
         isWriting = true;
-        xTaskCreatePinnedToCore(gpb_mergeMultiPrint,    // Task function. 
-                        "mergeMultiPrint",              // name of task. 
-                        10000,                          // Stack size of task 
-                        NULL,                           // parameter of the task 
-                        1,                              // priority of the task 
-                        &TaskWrite,                     // Task handle to keep track of created task 
-                        0);                             // pin task to core 0  
+        callFileMerger();
       }
       
       #ifdef USE_OLED
@@ -416,4 +404,14 @@ void espprinter_loop() {
     }
   }
   last_millis = curr_millis; 
+}
+
+void callFileMerger(){
+  xTaskCreatePinnedToCore(gpb_mergeMultiPrint,    // Task function. 
+                          "mergeMultiPrint",      // name of task. 
+                          10000,                  // Stack size of task 
+                          NULL,                   // parameter of the task 
+                          1,                      // priority of the task 
+                          &TaskWrite,             // Task handle to keep track of created task 
+                          0);                     // pin task to core 0  
 }

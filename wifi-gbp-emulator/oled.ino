@@ -127,7 +127,6 @@ void oled_setup() {
   #endif 
    
   oled_drawSplashScreen();
-  delay(5000);
 }
 
 void oled_bootmessages(){

@@ -5,7 +5,6 @@
   SPIClass spiSD(HSPI);
 #endif
 
-
 // Variables used across multiple files, so they need to be defined here
 String mdnsName = DEFAULT_MDNS_NAME;
 String accesPointSSID = DEFAULT_AP_SSID;
@@ -13,6 +12,17 @@ String accesPointPassword = DEFAULT_AP_PSK;
 bool hasNetworkSettings = false;
 bool bootMode;
 bool isFileSystemMounted = false;
+bool isWriting = false;
+unsigned int totalMultiImages = 1;
+
+
+#ifdef BUTTON_FEATURE 
+  // Button Variables
+  long buttonTimer = 0;
+  long longPressTime = 2000;
+  boolean buttonActive = false;
+  boolean longPressActive = false;
+#endif
 
 void setup() {
   Serial.begin(115200);
@@ -21,9 +31,16 @@ void setup() {
   #ifdef USE_OLED
     oled_setup();
   #endif
-
+  
+  delay(5000);
+  
   isFileSystemMounted = fs_setup();
-  if(isFileSystemMounted){
+  if(isFileSystemMounted){   
+    /* Pin for pushbutton */ 
+    #ifdef BUTTON_FEATURE 
+      pinMode(BTN_PUSH, INPUT);
+    #endif
+    
     #ifdef USE_OLED
       oled_bootmessages();
     #endif
@@ -78,5 +95,41 @@ void loop() {
       ESP.restart();
     }
     #endif
+
+    #ifdef BUTTON_FEATURE 
+      // Feature to detect a short press and a Long Press
+      if (digitalRead(BTN_PUSH) == HIGH) {  
+        if (buttonActive == false) {  
+          buttonActive = true;
+          buttonTimer = millis();  
+        }  
+        if ((millis() - buttonTimer > longPressTime) && (longPressActive == false)) {  
+          longPressActive = true;
+          Serial.println("Rebooting...");
+          delay(1000);
+          ESP.restart();
+        }  
+      } else {  
+        if (buttonActive == true) {  
+          if (longPressActive == true) {  
+            longPressActive = false;  
+          } else {
+            if((totalMultiImages-1) > 1 && !isWriting){
+              Serial.println("Force File Merger");
+              #ifdef USE_OLED
+                oled_msg("Force Merging Files...");
+              #endif
+              isWriting = true;
+              totalMultiImages--;
+              callFileMerger();
+            }
+          }  
+          buttonActive = false;  
+        }  
+      }
+    #endif
+    
+
+    
   }
 }

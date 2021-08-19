@@ -33,3 +33,6 @@
 //  #define GB_MISO 19
 //  #define GB_MOSI 23
 //  #define GB_SCLK 18
+
+// Define a PushButton to use to Reset the emulator/Force merge files.
+  #define BTN_PUSH 34
