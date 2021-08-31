@@ -4,19 +4,22 @@ This code has been created for a "DOIT ESP32 DEVKIT V1" [ESP32 based board](http
 
 The required (recommended) [gameboy printer web interface can be found on github as well](https://github.com/HerrZatacke/gb-printer-web/)  
 
+You can check the compatibility list here: [Game Boy Printer Emulator - Games Support](https://docs.google.com/spreadsheets/d/1RQeTHemyEQnWHbKEhUy16cPxR6vA3YfeBbyx2tIXWaU/edit#gid=0) 
+
 ## Setup
-For uploading the Filesystem to the ESP you require the [Arduino ESP32 filesystem uploader](https://github.com/lorol/arduino-esp32fs-plugin). Follow the installation instructions on the repository.
+For uploading the Filesystem to the ESP you require the [Arduino ESP32 filesystem uploader](https://github.com/lorol/arduino-esp32fs-plugin). You can use a SD card instead upload the files to the ESP Flash Memory. Follow the installation instructions on the repository.
 
 Before compiling the project you need to create a `config.h` inside the project folder  
 
 ([`config.h.sample.txt`](/wifi-gbp-emulator/config.h.sample.txt) should be used as a reference)    
 I recommended to adjust the parameters to match with your board 
 
-## Bootmode
+
+~~## Bootmode
 The code is designed to check pin `G5` for high to boot in printer mode  
 Through this it is possible to use the +5v provided by the GameBoy to switch the mode  
 The default will alternate the bootmode automatically between printer and server on each boot, so you can use the reset-button to switch modes  
-If you have the possibility to sense the 5V signal, from the GameBoy, you can uncomment `#define SENSE_BOOT_MODE` in your `config.h`  
+If you have the possibility to sense the 5V signal, from the GameBoy, you can uncomment `#define SENSE_BOOT_MODE` in your `config.h`~~
 
 ## WiFi Configuration
 If the device is not configured the default settings (AP only) will be used
@@ -92,6 +95,7 @@ Gameboy Original/Color Link Cable Pinout
 | Pin 1      | Any pin | 
 | Pin 2      | G19     |
 | Pin 3      | G23     |
+| Pin 4      |   N/A   |
 | Pin 5      | G18     |
 | Pin 6      | G       |
 
@@ -99,8 +103,8 @@ Gameboy Original/Color Link Cable Pinout
 
 Additionally an [OLED Display](https://github.com/zenaro147/wifi-gbp-emulator/#oled-display) can be added via G22 -> Display SCL / G21 -> Display SDA. If you have some trouble with these pins, you can use any other GPIO pin as SCL/SDA
 
-## Micro SD Card Setup
-You can add a [Micro SD Card like this](https://www.amazon.com/Adapter-Reader-interface-driver-Arduino/dp/B01MSNX0TW/) to save the received data and the web server content.
+## SD/MicroSD Card Setup
+You can add a [Micro SD Card Module](https://pt.aliexpress.com/item/4000002592780.html) or a [SD Card Module](https://pt.aliexpress.com/item/32523666863.html) to save the received data and the web server content. I highly recommend to get one, especially the [SD Card Module](https://pt.aliexpress.com/item/32523666863.html), It's more stable than [Micro SD Card Module](https://pt.aliexpress.com/item/4000002592780.html). This will able you to save 400 pictures without any Flash Memory issue.
 To use it, you need to uncomment `#define FSTYPE_SDCARD` and connect the pins following this schema
 ```
 | SD ADAPTER |  ESP32  |
@@ -110,19 +114,24 @@ To use it, you need to uncomment `#define FSTYPE_SDCARD` and connect the pins fo
 | MISO       | G27     | <-- DON'T USE THE G12... YOU CAN USE ANY OTHER PIN AVAILABLE
 | MOSI       | G13     |
 | GND        | G       |
-| VCC        | V5      |
+| VCC/5v     | VIN     |
+| 3v3        |    -    |
 
 ```
 Instead use the [Arduino ESP32 filesystem uploader](https://github.com/lorol/arduino-esp32fs-plugin), just format your SD Card to `FAT32` and copy de content of `DATA` folder to the root of your SD card
 
 ## OLED Display
-You can add a [tiny oled display like this](https://www.amazon.de/gp/product/B07BDFXFRK) or [(probably) this](https://de.aliexpress.com/item/32672229793.html)   
-To use it, you need to uncomment `#define USE_OLED` and the following lines   
-The display will show the current wifi-config while in server mode, as well as the number of printed images  when in printer mode  
-**Please note the image count in printer mode only regularly updates while idle, and not while printing a batch of images**
+You can add a [tiny oled display like this](https://pt.aliexpress.com/item/32672229793.html). To use it, you need to uncomment `#define USE_OLED` and the following lines   
+The display will show the current wifi-config while in server mode, as well as the number of printed images when in printer mode  
+```
+| OLED DISPLAY|   ESP32  |
+|-------------|----------|
+| GND         | GND      | 
+| VIN         | 5v or 3v3|
+| SCL         | G22      | <-- YOU CAN USE ANY GPIO AVAILABLE
+| SDA         | G21      | <-- YOU CAN USE ANY GPIO AVAILABLE
 
-## ToDos
-Enhance performance while saving (maybe by constantly writing all data to a single file instead of buffering and flushing it) 
+```
 
 ## Links
 * Original GPB-Emulator by [mofosyne: Arduino Gameboy Printer Emulator](https://github.com/mofosyne/arduino-gameboy-printer-emulator)  
@@ -131,7 +140,6 @@ Enhance performance while saving (maybe by constantly writing all data to a sing
 
 ## Known Bugs
 * You can only use one WiFi Network due an ESP32 issue, even if you add more then one in `conf.json`. Access Point mode works fine;
-* You can check the compatibility list here: [Game Boy Printer Emulator - Games Support](https://docs.google.com/spreadsheets/d/1RQeTHemyEQnWHbKEhUy16cPxR6vA3YfeBbyx2tIXWaU/edit#gid=0) 
   
 ### ⚠ Take care ⚠
 You should not power the ESP from the GameBoy, as this might damage the GameBoy itself. What you see in the video was meant as a proof of concept which is basically not implemented anymore  
