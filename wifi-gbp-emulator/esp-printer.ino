@@ -174,12 +174,17 @@ void storeData(void *pvParameters){
   Merge multiple files into one single file
 *******************************************************************************/
 void gpb_mergeMultiPrint(void *pvParameters){
+//void gpb_mergeMultiPrint(){  
   byte inqypck[10] = {B10001000, B00110011, B00001111, B00000000, B00000000, B00000000, B00001111, B00000000, B10000001, B00000000};
   img_index = 0;
   memset(image_data, 0x00, sizeof(image_data));
   Serial.println("Merging Files");
 
   char path[31];
+
+  bool gotCMDPRNT=false;  
+  uint8_t chkmargin = 0;
+  
   for (int i = 1 ; i <= totalMultiImages ; i++){
     sprintf(path, "/t/%05d_%05d.txt", freeFileIndex,i);
     //Read File
@@ -198,7 +203,33 @@ void gpb_mergeMultiPrint(void *pvParameters){
     }else{
       file = FSYS.open(path, FILE_APPEND);
     }
-    file.write(image_data,img_index);
+    
+    if(i < totalMultiImages){
+      for(int x=0; x <= img_index; x++){
+        if(image_data[x] == B10001000 && image_data[x+1] == B00110011 && image_data[x+2] == B00000010){
+          gotCMDPRNT=true;
+          chkmargin++;
+          file.print((char)image_data[x]);
+        }else{
+          if(gotCMDPRNT){
+            if(chkmargin==7){
+              file.print((char)B00000000);
+              gotCMDPRNT=false;
+              chkmargin=0x00;
+            }else{
+              chkmargin++;
+              file.print((char)image_data[x]);
+            }              
+          }else{
+            file.print((char)image_data[x]);
+            gotCMDPRNT=false;
+            chkmargin=0x00;
+          }
+        }
+      }
+    }else{    
+      file.write(image_data,img_index);
+    }
     file.write(inqypck, 10);
     file.close();
     
@@ -276,7 +307,8 @@ inline void gbp_packet_capture_loop() {
               inqypck++;
               if(inqypck > 20){
                 //Force to write the saves images  
-                callFileMerger();           
+                callFileMerger();
+//                gpb_mergeMultiPrint(); 
                 inqypck=0;
               }
             }
@@ -394,6 +426,13 @@ void espprinter_loop() {
         #endif
         isWriting = true;
         callFileMerger();
+//        detachInterrupt(attachInterrupt( digitalPinToInterrupt(GB_SCLK));
+//        gpb_mergeMultiPrint();
+//        #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
+//          attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
+//        #else
+//          attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
+//        #endif 
       }
       
       #ifdef USE_OLED
@@ -409,7 +448,7 @@ void espprinter_loop() {
 void callFileMerger(){
   xTaskCreatePinnedToCore(gpb_mergeMultiPrint,    // Task function. 
                           "mergeMultiPrint",      // name of task. 
-                          10000,                  // Stack size of task 
+                          20000,                  // Stack size of task 
                           NULL,                   // parameter of the task 
                           1,                      // priority of the task 
                           &TaskWrite,             // Task handle to keep track of created task 

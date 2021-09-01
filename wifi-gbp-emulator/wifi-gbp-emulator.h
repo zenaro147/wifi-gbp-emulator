@@ -51,7 +51,8 @@
 #ifdef FSTYPE_SDCARD
   #include "SD.h"
   #include "SPI.h"
-
+  #define FSYS SD
+  
   #ifndef SD_CS 
     #define SD_CS 15
   #endif
@@ -65,7 +66,6 @@
     #define SD_MISO 27
   #endif
 
-  #define FSYS SD
 #else
   #include <LittleFS.h>
   #define FSYS LittleFS

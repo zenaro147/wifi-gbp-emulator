@@ -30,9 +30,8 @@ void setup() {
 
   #ifdef USE_OLED
     oled_setup();
+    delay(5000);
   #endif
-  
-  delay(5000);
   
   isFileSystemMounted = fs_setup();
   if(isFileSystemMounted){   
@@ -94,27 +93,28 @@ void loop() {
     if (bootMode != digitalRead(GB_5V_OUT)) {
       ESP.restart();
     }
-    #endif
+    #endif    
+  }
 
-    #ifdef BUTTON_FEATURE 
-      // Feature to detect a short press and a Long Press
-      if(!isWriting){
-        if (digitalRead(BTN_PUSH) == HIGH) {  
-          if (buttonActive == false) {  
-            buttonActive = true;
-            buttonTimer = millis();  
-          }  
-          if ((millis() - buttonTimer > longPressTime) && (longPressActive == false)) {  
-            longPressActive = true;
-            Serial.println("Rebooting...");
-            delay(500);
-            ESP.restart();
-          }  
-        } else {  
-          if (buttonActive == true) {
-            if (longPressActive == true) {
-              longPressActive = false;  
-            } else {
+  #ifdef BUTTON_FEATURE 
+    // Feature to detect a short press and a Long Press
+    if(!isWriting){
+      if (digitalRead(BTN_PUSH) == HIGH) {  
+        if (buttonActive == false) {  
+          buttonActive = true;
+          buttonTimer = millis();  
+        }  
+        if ((millis() - buttonTimer > longPressTime) && (longPressActive == false)) {  
+          longPressActive = true;
+          Serial.println("Rebooting...");
+          ESP.restart();
+        }  
+      } else {  
+        if (buttonActive == true) {
+          if (longPressActive == true) {
+            longPressActive = false;  
+          } else {
+            if(isFileSystemMounted){
               if((totalMultiImages-1) > 1){
                 Serial.println("Force File Merger");
                 #ifdef USE_OLED
@@ -123,15 +123,13 @@ void loop() {
                 isWriting = true;
                 totalMultiImages--;
                 callFileMerger();
+            //    gpb_mergeMultiPrint(); 
               }
-            }  
-            buttonActive = false;  
+            }
           }  
-        }
+          buttonActive = false;  
+        }  
       }
-    #endif
-    
-
-    
-  }
+    }
+  #endif
 }

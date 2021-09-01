@@ -1,11 +1,13 @@
 
 bool fs_setup() {
+
   #ifdef FSTYPE_SDCARD
     spiSD.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS); //SCK,MISO,MOSI,SS //HSPI1
     FSYS.begin(SD_CS, spiSD);
   #else
     FSYS.begin();
   #endif 
+  
   if (!FSYS.begin(true)) {
     #ifdef FSTYPE_SDCARD
       Serial.println("SD Card Mount Failed");

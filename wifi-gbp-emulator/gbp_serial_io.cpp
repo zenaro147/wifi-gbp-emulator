@@ -36,11 +36,7 @@
 
 /******************************************************************************/
 
-#ifdef FSTYPE_SDCARD
-  #define GBP_PKT10_TIMEOUT_MS 400 //500
-#else
-  #define GBP_PKT10_TIMEOUT_MS 15000 //500
-#endif
+#define GBP_PKT10_TIMEOUT_MS 400 //Set to 1500 if you don't want to use a SD Card Module, or 400 if you want to use the SD Card Module
 
 // Testing
 //#define TEST_CHECKSUM_FORCE_FAIL
@@ -49,11 +45,8 @@
 // Feature
 //#define FEATURE_CHECKSUM_SUPPORTED ///< WIP
 
-#ifdef FSTYPE_SDCARD
-  #define GBP_BUSY_PACKET_COUNT 20 // 68 Inquiry packets is generally approximately how long it takes for a real printer to print. This is not a real printer so can be shorter
-#else
-  #define GBP_BUSY_PACKET_COUNT 68 // 68 Inquiry packets is generally approximately how long it takes for a real printer to print. This is not a real printer so can be shorter
-#endif
+// 68 Inquiry packets is generally approximately how long it takes for a real printer to print. This is not a real printer so can be shorter
+#define GBP_BUSY_PACKET_COUNT 20 // Set to 68 if you don't want to use a SD Card Module, or 20 if you want to use the SD Card Module
 
 /******************************************************************************/
 
