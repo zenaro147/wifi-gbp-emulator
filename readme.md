@@ -133,6 +133,29 @@ The display will show the current wifi-config while in server mode, as well as t
 
 ```
 
+## Push Button to Manual Merge Files/Reset printer
+You can add a [little Push Button like this](https://pt.aliexpress.com/item/1005002824489337.html) to manually merge the files (It will be obligatory if you want to print stuffs from "E.T.: Digital Companion" and "Mary-Kate and Ashley Pocket Planner". These two games didn't merge the files automatically). To use it, you need to uncomment `#define BUTTON_FEATURE` in `config.h` and set the `#define BTN_PUSH` to any pin you want.
+
+The function is simple:
+* Single press: Force to merge files when a long print is detected
+* Long Press: Reset the printer/Change the bootmode 
+
+```
+PushButton Schematic
+     __________
+    |          |
+1 --|----------|-- 2
+    |          |
+3 --|----------|-- 4
+    |__________|
+
+| Button | ESP32 |
+|--------|-------|
+| 1 or 2 |  3v3  | 
+| 3 or 4 |  G34  | <-- I recommend to coonect a 10K resistor to the GND together, to act as a Pull Down.
+
+```
+
 ## Links
 * Original GPB-Emulator by [mofosyne: Arduino Gameboy Printer Emulator](https://github.com/mofosyne/arduino-gameboy-printer-emulator)  
 * Original WiFi GBP Emulator by [HerrZatacke: WiFi GBP Emulator](https://github.com/HerrZatacke/wifi-gbp-emulator)
