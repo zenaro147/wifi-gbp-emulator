@@ -165,6 +165,5 @@ PushButton Schematic
 * You can only use one WiFi Network due an ESP32 issue, even if you add more then one in `conf.json`. Access Point mode works fine;
   
 ### ⚠ Take care ⚠
-You should not power the ESP from the GameBoy, as this might damage the GameBoy itself. What you see in the video was meant as a proof of concept which is basically not implemented anymore  
-
+You should not power the ESP from the GameBoy, as this might damage the GameBoy itself.
 
