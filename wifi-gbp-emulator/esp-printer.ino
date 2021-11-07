@@ -195,6 +195,9 @@ inline void gbp_packet_capture_loop() {
           memcpy(img_tmp,image_data,12000);
           memset(image_data, 0x00, sizeof(image_data)); 
           isWriting=true;
+          #ifdef USE_OLED
+            oled_msg("Saving...");
+          #endif
           if((chkMargin == 0 || ((chkMargin == 3 && dtpck == 1) || (chkMargin == 1 && dtpck == 1) || (chkMargin == 1 && dtpck == 6))) && !setMultiPrint){
             setMultiPrint=true;
             dtpck=0x00;
@@ -235,11 +238,7 @@ void storeData(void *pvParameters)
   char fileName[31];
   
   digitalWrite(LED_BLINK_PIN, LOW);
-  
-  #ifdef USE_OLED
-    oled_msg("Saving...");
-  #endif
-  
+    
   if(setMultiPrint || totalMultiImages > 1){
     sprintf(fileName, "/t/%05d_%05d.txt", freeFileIndex,totalMultiImages);
   }else{
@@ -415,13 +414,6 @@ void espprinter_loop() {
         #endif
         isWriting = true;
         callFileMerger();
-//        detachInterrupt(attachInterrupt( digitalPinToInterrupt(GB_SCLK));
-//        gpb_mergeMultiPrint();
-//        #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
-//          attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
-//        #else
-//          attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
-//        #endif 
       }
       
       #ifdef USE_OLED
