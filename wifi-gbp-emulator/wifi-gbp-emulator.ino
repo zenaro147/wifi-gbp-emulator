@@ -26,9 +26,6 @@ unsigned int totalMultiImages = 1;
 
 void setup() {
   Serial.begin(115200);
-  //Force CPU Frequency to 160MHz instead the default 240MHz. This fix the Mc Donalds game issue.
-  //In case of erros, change to 80
-  setCpuFrequencyMhz(160); 
   Serial.println("\n\n\n\n");
 
   #ifdef USE_OLED
@@ -125,7 +122,8 @@ void loop() {
                 #endif
                 isWriting = true;
                 totalMultiImages--;
-                callFileMerger(); 
+                callFileMerger();
+            //    gpb_mergeMultiPrint(); 
               }
             }
           }  

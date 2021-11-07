@@ -28,6 +28,7 @@ TaskHandle_t TaskWrite;
 bool setMultiPrint = false;
 
 uint8_t dtpck = 0;
+uint8_t inqypck = 0;
 
 /*******************************************************************************
   Utility Functions
@@ -104,6 +105,23 @@ void full() {
 }
 
 /*******************************************************************************
+  Clear Variables before writing
+*******************************************************************************/
+void resetValues() {
+  img_index = 0x00;     
+    
+  // Turn LED ON
+  digitalWrite(LED_BLINK_PIN, false);
+  
+  chkHeader = 99; 
+  
+  dtpck = 0x00;
+  inqypck = 0x00;
+  cmdPRNT = 0x00;
+  isWriting = false;
+}
+
+/*******************************************************************************
   Write received data into a file
 *******************************************************************************/
 void storeData(void *pvParameters){
@@ -144,12 +162,7 @@ void storeData(void *pvParameters){
     }else if (setMultiPrint){    
       totalMultiImages++;
     }
-    
-    //Reset Variables
-    digitalWrite(LED_BLINK_PIN, LOW);
-    Serial.println("Printer ready.");
-    isWriting = false;
-    
+    resetValues();
     vTaskDelete(NULL); 
   } else {
     Serial.println("no more space on printer\nrebooting...");
@@ -160,7 +173,8 @@ void storeData(void *pvParameters){
 /*******************************************************************************
   Merge multiple files into one single file
 *******************************************************************************/
-void gpb_mergeMultiPrint(void *pvParameters){ 
+void gpb_mergeMultiPrint(void *pvParameters){
+//void gpb_mergeMultiPrint(){  
   byte inqypck[10] = {B10001000, B00110011, B00001111, B00000000, B00000000, B00000000, B00001111, B00000000, B10000001, B00000000};
   img_index = 0;
   memset(image_data, 0x00, sizeof(image_data));
@@ -229,17 +243,7 @@ void gpb_mergeMultiPrint(void *pvParameters){
   Serial.printf("File %s written", path);
   if (freeFileIndex < MAX_IMAGES) {
     freeFileIndex++; 
-
-    //Reset Values
-    img_index = 0x00;  
-    // Turn LED ON
-    digitalWrite(LED_BLINK_PIN, false);
-    chkHeader = 99; 
-    dtpck = 0x00;
-    cmdPRNT = 0x00;
-    isWriting = false;
-
-    
+    resetValues();
   } else {
     Serial.println("no more space on printer\nrebooting...");
     full();
@@ -277,6 +281,11 @@ inline void gbp_packet_capture_loop() {
         pktDataLength |= (gbp_serial_io_dataBuff_getByte_Peek(5)<<8)&0xFF00;
 
         chkHeader = (int)gbp_serial_io_dataBuff_getByte_Peek(2);
+        
+//        Serial.print("// ");
+//        Serial.print(pktTotalCount);
+//        Serial.print(" : ");
+//        Serial.println(gbpCommand_toStr(gbp_serial_io_dataBuff_getByte_Peek(2)));
 
         switch (chkHeader) {
           case 1:
@@ -293,6 +302,17 @@ inline void gbp_packet_capture_loop() {
             ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game and Nakayoshi Cooking Series 5 : Cake o Tsukurou //////////////////////////////////////////////
             break;
           case 15:
+            ////////////////////////////////////////////// FIX for Tales of Phantasia //////////////////////////////////////////////
+            if (totalMultiImages > 1 && !isWriting && !setMultiPrint){
+              inqypck++;
+              if(inqypck > 20){
+                //Force to write the saves images  
+                callFileMerger();
+//                gpb_mergeMultiPrint(); 
+                inqypck=0;
+              }
+            }
+            ////////////////////////////////////////////// FIX for Tales of Phantasia //////////////////////////////////////////////
             break;
           default:
             break;
@@ -302,13 +322,17 @@ inline void gbp_packet_capture_loop() {
 
       // Print Hex Byte
       data_8bit = gbp_serial_io_dataBuff_getByte();
+//      Serial.print((char)nibbleToCharLUT[(data_8bit>>4)&0xF]);
+//      Serial.print((char)nibbleToCharLUT[(data_8bit>>0)&0xF]);
 
-      if (chkHeader == 1 || chkHeader == 2 || chkHeader == 4){
-        image_data[img_index] = (byte)data_8bit;
-        img_index++;
-        if (chkHeader == 2 && pktByteIndex == 7) { 
-          cmdPRNT = (int)((char)nibbleToCharLUT[(data_8bit>>0)&0xF])-'0';
-        } 
+      if (!isWriting){
+        if (chkHeader == 1 || chkHeader == 2 || chkHeader == 4){
+          image_data[img_index] = (byte)data_8bit;
+          img_index++;
+          if (chkHeader == 2 && pktByteIndex == 7) { 
+            cmdPRNT = (int)((char)nibbleToCharLUT[(data_8bit>>0)&0xF])-'0';
+          } 
+        }
       }
       
       // Splitting packets for convenience
@@ -319,8 +343,6 @@ inline void gbp_packet_capture_loop() {
           }
         #endif          
         digitalWrite(LED_BLINK_PIN, LOW);
-        memcpy(img_tmp,image_data,12000);
-        memset(image_data, 0x00, sizeof(image_data));
         if (chkHeader == 2 && !isWriting) {
           isWriting=true;
           if((cmdPRNT == 0 || ((cmdPRNT == 1 && dtpck == 1) || (cmdPRNT == 1 && dtpck == 6))) && !setMultiPrint){
@@ -331,6 +353,7 @@ inline void gbp_packet_capture_loop() {
               setMultiPrint=false; 
             }
           }
+          memcpy(img_tmp,image_data,12000);
           xTaskCreatePinnedToCore(storeData,            // Task function. 
                                   "storeData",          // name of task. 
                                   10000,                // Stack size of task 
@@ -338,10 +361,13 @@ inline void gbp_packet_capture_loop() {
                                   1,                    // priority of the task 
                                   &TaskWrite,           // Task handle to keep track of created task 
                                   0);                   // pin task to core 0 
+          memset(image_data, 0x00, sizeof(image_data));
         }
+//        Serial.println("");
         pktByteIndex = 0;
         pktTotalCount++;
       } else {
+//        Serial.print((char)' ');
         pktByteIndex++; // Byte hex split counter
         byteTotal++; // Byte total counter
       }
@@ -400,6 +426,13 @@ void espprinter_loop() {
         #endif
         isWriting = true;
         callFileMerger();
+//        detachInterrupt(attachInterrupt( digitalPinToInterrupt(GB_SCLK));
+//        gpb_mergeMultiPrint();
+//        #ifdef GBP_FEATURE_USING_RISING_CLOCK_ONLY_ISR
+//          attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, RISING);  // attach interrupt handler
+//        #else
+//          attachInterrupt( digitalPinToInterrupt(GB_SCLK), serialClock_ISR, CHANGE);  // attach interrupt handler
+//        #endif 
       }
       
       #ifdef USE_OLED
