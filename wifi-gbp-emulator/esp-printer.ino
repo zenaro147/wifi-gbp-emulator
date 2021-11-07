@@ -170,7 +170,7 @@ inline void gbp_packet_capture_loop() {
           memcpy(img_tmp,image_data,12000);
           memset(image_data, 0x00, sizeof(image_data));
           isWriting=true;
-          if((chkMargin == 0 || ((chkMargin == 3 && dtpck == 1) || (chkMargin == 1 && dtpck == 1) || (chkMargin == 1 && dtpck == 6))) && !setMultiPrint){
+          if((chkMargin == 0 || ((chkMargin == 3 && dtpck == 1) || ((chkMargin == 1 && dtpck == 1) || (chkMargin == 1 && dtpck == 6))) && !setMultiPrint){
             setMultiPrint=true;
             dtpck=0x00;
           }else{
