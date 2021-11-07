@@ -7,7 +7,7 @@
 unsigned int nextFreeFileIndex();
 unsigned int freeFileIndex = 0;
 
-uint8_t cmdPRNT=0x00;
+uint8_t chkMargin=0x00;
 uint8_t chkHeader=99;
 
 byte image_data[12000] = {}; //moreless 14 photos (82.236) -- ESP32 can handle up to 500 images without the app open or 400 with the app
@@ -117,8 +117,127 @@ void resetValues() {
   
   dtpck = 0x00;
   inqypck = 0x00;
-  cmdPRNT = 0x00;
+  chkMargin = 0x00;
   isWriting = false;
+}
+
+/*******************************************************************************
+  Main loop to capture data from the Gameboy
+*******************************************************************************/
+inline void gbp_packet_capture_loop() {
+  /* tiles received */
+  static uint32_t byteTotal = 0;
+  static uint32_t pktTotalCount = 0;
+  static uint32_t pktByteIndex = 0;
+  static uint16_t pktDataLength = 0;
+  const size_t dataBuffCount = gbp_serial_io_dataBuff_getByteCount();
+  if (
+    ((pktByteIndex != 0) && (dataBuffCount > 0)) ||
+    ((pktByteIndex == 0) && (dataBuffCount >= 6))
+  ) {
+    const char nibbleToCharLUT[] = "0123456789ABCDEF";
+    uint8_t data_8bit = 0;
+    
+    // Display the data payload encoded in hex
+    for (int i = 0 ; i < dataBuffCount ; i++) {     
+      // Start of a new packet
+      if (pktByteIndex == 0) {
+        pktDataLength = gbp_serial_io_dataBuff_getByte_Peek(4);
+        pktDataLength |= (gbp_serial_io_dataBuff_getByte_Peek(5)<<8)&0xFF00;
+
+        chkHeader = (int)gbp_serial_io_dataBuff_getByte_Peek(2);
+        
+//        Serial.print("// ");
+//        Serial.print(pktTotalCount);
+//        Serial.print(" : ");
+//        Serial.println(gbpCommand_toStr(gbp_serial_io_dataBuff_getByte_Peek(2)));
+
+        switch (chkHeader) {
+          case 1:
+            chkMargin = 0x00;
+            break;
+          case 2:          
+            break;
+          case 4:
+            ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game and Nakayoshi Cooking Series 5 : Cake o Tsukurou //////////////////////////////////////////////
+            if (pktDataLength > 0){
+              //Count how many data packages was received before sending the print command
+              dtpck++;
+            }
+            ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game and Nakayoshi Cooking Series 5 : Cake o Tsukurou //////////////////////////////////////////////
+            break;
+          case 15:
+            ////////////////////////////////////////////// FIX for Tales of Phantasia //////////////////////////////////////////////
+            if (totalMultiImages > 1 && !isWriting && !setMultiPrint){
+              inqypck++;
+              if(inqypck > 20){
+                //Force to write the saves images  
+                callFileMerger();
+//                gpb_mergeMultiPrint(); 
+                inqypck=0;
+              }
+            }
+            ////////////////////////////////////////////// FIX for Tales of Phantasia //////////////////////////////////////////////
+            break;
+          default:
+            break;
+        }        
+        digitalWrite(LED_BLINK_PIN, HIGH);
+      }
+
+      // Print Hex Byte
+      data_8bit = gbp_serial_io_dataBuff_getByte();
+//      Serial.print((char)nibbleToCharLUT[(data_8bit>>4)&0xF]);
+//      Serial.print((char)nibbleToCharLUT[(data_8bit>>0)&0xF]);
+
+      if (!isWriting){
+        if (chkHeader == 1 || chkHeader == 2 || chkHeader == 4){
+          image_data[img_index] = (byte)data_8bit;
+          img_index++;
+          if (chkHeader == 2 && pktByteIndex == 7) { 
+            chkMargin = (int)((char)nibbleToCharLUT[(data_8bit>>0)&0xF])-'0';
+          } 
+        }
+      }
+      
+      // Splitting packets for convenience
+      if ((pktByteIndex > 5) && (pktByteIndex >= (9 + pktDataLength))) {
+        #ifdef USE_OLED
+          if (!isWriting){
+            oled_msg("Receiving...");
+          }
+        #endif          
+        digitalWrite(LED_BLINK_PIN, LOW);
+        if (chkHeader == 2 && !isWriting) {
+          isWriting=true;
+          if((chkMargin == 0 || ((chkMargin == 1 && dtpck == 1) || (chkMargin == 1 && dtpck == 6))) && !setMultiPrint){
+            setMultiPrint=true;
+            dtpck=0x00;
+          }else{
+            if(chkMargin > 0 && setMultiPrint){
+              setMultiPrint=false; 
+            }
+          }
+          memcpy(img_tmp,image_data,12000);
+          xTaskCreatePinnedToCore(storeData,            // Task function. 
+                                  "storeData",          // name of task. 
+                                  10000,                // Stack size of task 
+                                  (void*)&img_tmp,   // parameter of the task 
+                                  1,                    // priority of the task 
+                                  &TaskWrite,           // Task handle to keep track of created task 
+                                  0);                   // pin task to core 0 
+          memset(image_data, 0x00, sizeof(image_data));
+        }
+//        Serial.println("");
+        pktByteIndex = 0;
+        pktTotalCount++;
+      } else {
+//        Serial.print((char)' ');
+        pktByteIndex++; // Byte hex split counter
+        byteTotal++; // Byte total counter
+      }
+    }
+  }
 }
 
 /*******************************************************************************
@@ -182,7 +301,7 @@ void gpb_mergeMultiPrint(void *pvParameters){
 
   char path[31];
 
-  bool gotCMDPRNT=false;  
+  bool gotchkMargin=false;  
   uint8_t chkmargin = 0;
   
   for (int i = 1 ; i <= totalMultiImages ; i++){
@@ -207,14 +326,14 @@ void gpb_mergeMultiPrint(void *pvParameters){
     if(i < totalMultiImages){
       for(int x=0; x <= img_index; x++){
         if(image_data[x] == B10001000 && image_data[x+1] == B00110011 && image_data[x+2] == B00000010){
-          gotCMDPRNT=true;
+          gotchkMargin=true;
           chkmargin++;
           file.print((char)image_data[x]);
         }else{
-          if(gotCMDPRNT){
+          if(gotchkMargin){
             if(chkmargin==7){
               file.print((char)B00000000);
-              gotCMDPRNT=false;
+              gotchkMargin=false;
               chkmargin=0x00;
             }else{
               chkmargin++;
@@ -222,7 +341,7 @@ void gpb_mergeMultiPrint(void *pvParameters){
             }              
           }else{
             file.print((char)image_data[x]);
-            gotCMDPRNT=false;
+            gotchkMargin=false;
             chkmargin=0x00;
           }
         }
@@ -254,125 +373,6 @@ void gpb_mergeMultiPrint(void *pvParameters){
   #endif 
   
   vTaskDelete(NULL); 
-}
-
-/*******************************************************************************
-  Main loop to capture data from the Gameboy
-*******************************************************************************/
-inline void gbp_packet_capture_loop() {
-  /* tiles received */
-  static uint32_t byteTotal = 0;
-  static uint32_t pktTotalCount = 0;
-  static uint32_t pktByteIndex = 0;
-  static uint16_t pktDataLength = 0;
-  const size_t dataBuffCount = gbp_serial_io_dataBuff_getByteCount();
-  if (
-    ((pktByteIndex != 0) && (dataBuffCount > 0)) ||
-    ((pktByteIndex == 0) && (dataBuffCount >= 6))
-  ) {
-    const char nibbleToCharLUT[] = "0123456789ABCDEF";
-    uint8_t data_8bit = 0;
-    
-    // Display the data payload encoded in hex
-    for (int i = 0 ; i < dataBuffCount ; i++) {     
-      // Start of a new packet
-      if (pktByteIndex == 0) {
-        pktDataLength = gbp_serial_io_dataBuff_getByte_Peek(4);
-        pktDataLength |= (gbp_serial_io_dataBuff_getByte_Peek(5)<<8)&0xFF00;
-
-        chkHeader = (int)gbp_serial_io_dataBuff_getByte_Peek(2);
-        
-//        Serial.print("// ");
-//        Serial.print(pktTotalCount);
-//        Serial.print(" : ");
-//        Serial.println(gbpCommand_toStr(gbp_serial_io_dataBuff_getByte_Peek(2)));
-
-        switch (chkHeader) {
-          case 1:
-            cmdPRNT = 0x00;
-            break;
-          case 2:          
-            break;
-          case 4:
-            ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game and Nakayoshi Cooking Series 5 : Cake o Tsukurou //////////////////////////////////////////////
-            if (pktDataLength > 0){
-              //Count how many data packages was received before sending the print command
-              dtpck++;
-            }
-            ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game and Nakayoshi Cooking Series 5 : Cake o Tsukurou //////////////////////////////////////////////
-            break;
-          case 15:
-            ////////////////////////////////////////////// FIX for Tales of Phantasia //////////////////////////////////////////////
-            if (totalMultiImages > 1 && !isWriting && !setMultiPrint){
-              inqypck++;
-              if(inqypck > 20){
-                //Force to write the saves images  
-                callFileMerger();
-//                gpb_mergeMultiPrint(); 
-                inqypck=0;
-              }
-            }
-            ////////////////////////////////////////////// FIX for Tales of Phantasia //////////////////////////////////////////////
-            break;
-          default:
-            break;
-        }        
-        digitalWrite(LED_BLINK_PIN, HIGH);
-      }
-
-      // Print Hex Byte
-      data_8bit = gbp_serial_io_dataBuff_getByte();
-//      Serial.print((char)nibbleToCharLUT[(data_8bit>>4)&0xF]);
-//      Serial.print((char)nibbleToCharLUT[(data_8bit>>0)&0xF]);
-
-      if (!isWriting){
-        if (chkHeader == 1 || chkHeader == 2 || chkHeader == 4){
-          image_data[img_index] = (byte)data_8bit;
-          img_index++;
-          if (chkHeader == 2 && pktByteIndex == 7) { 
-            cmdPRNT = (int)((char)nibbleToCharLUT[(data_8bit>>0)&0xF])-'0';
-          } 
-        }
-      }
-      
-      // Splitting packets for convenience
-      if ((pktByteIndex > 5) && (pktByteIndex >= (9 + pktDataLength))) {
-        #ifdef USE_OLED
-          if (!isWriting){
-            oled_msg("Receiving...");
-          }
-        #endif          
-        digitalWrite(LED_BLINK_PIN, LOW);
-        if (chkHeader == 2 && !isWriting) {
-          isWriting=true;
-          if((cmdPRNT == 0 || ((cmdPRNT == 1 && dtpck == 1) || (cmdPRNT == 1 && dtpck == 6))) && !setMultiPrint){
-            setMultiPrint=true;
-            dtpck=0x00;
-          }else{
-            if(cmdPRNT > 0 && setMultiPrint){
-              setMultiPrint=false; 
-            }
-          }
-          memcpy(img_tmp,image_data,12000);
-          xTaskCreatePinnedToCore(storeData,            // Task function. 
-                                  "storeData",          // name of task. 
-                                  10000,                // Stack size of task 
-                                  (void*)&img_tmp,   // parameter of the task 
-                                  1,                    // priority of the task 
-                                  &TaskWrite,           // Task handle to keep track of created task 
-                                  0);                   // pin task to core 0 
-          memset(image_data, 0x00, sizeof(image_data));
-        }
-//        Serial.println("");
-        pktByteIndex = 0;
-        pktTotalCount++;
-      } else {
-//        Serial.print((char)' ');
-        pktByteIndex++; // Byte hex split counter
-        byteTotal++; // Byte total counter
-      }
-    }
-  }
 }
 
 /*******************************************************************************
