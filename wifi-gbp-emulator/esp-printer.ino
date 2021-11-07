@@ -156,8 +156,6 @@ inline void gbp_packet_capture_loop() {
           case 1:
             chkMargin = 0x00;
             break;
-          case 2:          
-            break;
           case 4:
             ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game and Nakayoshi Cooking Series 5 : Cake o Tsukurou //////////////////////////////////////////////
             if (pktDataLength > 0){
@@ -165,19 +163,6 @@ inline void gbp_packet_capture_loop() {
               dtpck++;
             }
             ////////////////////////////////////////////// FIX for merge print in McDonald's Monogatari : Honobono Tenchou Ikusei Game and Nakayoshi Cooking Series 5 : Cake o Tsukurou //////////////////////////////////////////////
-            break;
-          case 15:
-            ////////////////////////////////////////////// FIX for Tales of Phantasia //////////////////////////////////////////////
-            if (totalMultiImages > 1 && !isWriting && !setMultiPrint){
-              inqypck++;
-              if(inqypck > 20){
-                //Force to write the saves images  
-                callFileMerger();
-//                gpb_mergeMultiPrint(); 
-                inqypck=0;
-              }
-            }
-            ////////////////////////////////////////////// FIX for Tales of Phantasia //////////////////////////////////////////////
             break;
           default:
             break;
@@ -190,14 +175,12 @@ inline void gbp_packet_capture_loop() {
 //      Serial.print((char)nibbleToCharLUT[(data_8bit>>4)&0xF]);
 //      Serial.print((char)nibbleToCharLUT[(data_8bit>>0)&0xF]);
 
-      if (!isWriting){
-        if (chkHeader == 1 || chkHeader == 2 || chkHeader == 4){
-          image_data[img_index] = (byte)data_8bit;
-          img_index++;
-          if (chkHeader == 2 && pktByteIndex == 7) { 
-            chkMargin = (int)((char)nibbleToCharLUT[(data_8bit>>0)&0xF])-'0';
-          } 
-        }
+      if (chkHeader == 1 || chkHeader == 2 || chkHeader == 4){
+        image_data[img_index] = (byte)data_8bit;
+        img_index++;
+        if (chkHeader == 2 && pktByteIndex == 7) { 
+          chkMargin = (int)((char)nibbleToCharLUT[(data_8bit>>0)&0xF])-'0';
+        } 
       }
       
       // Splitting packets for convenience
@@ -209,16 +192,15 @@ inline void gbp_packet_capture_loop() {
         #endif          
         digitalWrite(LED_BLINK_PIN, LOW);
         if (chkHeader == 2 && !isWriting) {
+          memcpy(img_tmp,image_data,12000);
+          memset(image_data, 0x00, sizeof(image_data)); 
           isWriting=true;
-          if((chkMargin == 0 || ((chkMargin == 1 && dtpck == 1) || (chkMargin == 1 && dtpck == 6))) && !setMultiPrint){
+          if((chkMargin == 0 || ((chkMargin == 3 && dtpck == 1) || (chkMargin == 1 && dtpck == 1) || (chkMargin == 1 && dtpck == 6))) && !setMultiPrint){
             setMultiPrint=true;
             dtpck=0x00;
-          }else{
-            if(chkMargin > 0 && setMultiPrint){
-              setMultiPrint=false; 
-            }
+          }else if(chkMargin > 0 && setMultiPrint){
+            setMultiPrint=false;
           }
-          memcpy(img_tmp,image_data,12000);
           xTaskCreatePinnedToCore(storeData,            // Task function. 
                                   "storeData",          // name of task. 
                                   10000,                // Stack size of task 
@@ -226,7 +208,7 @@ inline void gbp_packet_capture_loop() {
                                   1,                    // priority of the task 
                                   &TaskWrite,           // Task handle to keep track of created task 
                                   0);                   // pin task to core 0 
-          memset(image_data, 0x00, sizeof(image_data));
+          dtpck = 0x00;         
         }
 //        Serial.println("");
         pktByteIndex = 0;
@@ -243,10 +225,13 @@ inline void gbp_packet_capture_loop() {
 /*******************************************************************************
   Write received data into a file
 *******************************************************************************/
-void storeData(void *pvParameters){
+void storeData(void *pvParameters)
+{
   unsigned long perf = millis();
-  byte *image_data2 = ((byte*)pvParameters);
   int img_index2=img_index;
+  byte *image_data2 = ((byte*)pvParameters);
+  img_index = 0x00;
+  
   char fileName[31];
   
   digitalWrite(LED_BLINK_PIN, LOW);
@@ -274,14 +259,18 @@ void storeData(void *pvParameters){
   }else{
     Serial.printf("File /d/%05d.txt written in %lums\n", freeFileIndex, perf);
   }
-  
+
+  //Check how much images left
   if (freeFileIndex < MAX_IMAGES) {
     if(!setMultiPrint && totalMultiImages <= 1){
       freeFileIndex++; 
     }else if (setMultiPrint){    
       totalMultiImages++;
     }
-    resetValues();
+    //resetValues();
+    //Reset Variables
+    Serial.println("Printer ready.");
+    isWriting = false;
     vTaskDelete(NULL); 
   } else {
     Serial.println("no more space on printer\nrebooting...");
